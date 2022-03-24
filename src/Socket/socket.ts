@@ -9,6 +9,8 @@ import { AuthenticationCreds, BaileysEventEmitter, DisconnectReason, SocketConfi
 import { addTransactionCapability, bindWaitForConnectionUpdate, configureSuccessfulPairing, Curve, encodeBigEndian, generateLoginNode, generateOrGetPreKeys, generateRegistrationNode, getPreKeys, makeNoiseHandler, printQRIfNecessaryListener, promiseTimeout, useSingleFileAuthState, xmppPreKey, xmppSignedPreKey } from '../Utils'
 import { assertNodeErrorFree, BinaryNode, encodeBinaryNode, getBinaryNodeChild, S_WHATSAPP_NET } from '../WABinary'
 
+const INITIAL_PREKEY_COUNT = 30
+
 /**
  * Connects to WA servers and performs:
  * - simple queries (no retry mechanism, wait for connection establishment)
@@ -172,30 +174,34 @@ export const makeSocket = ({
 
 	/** connection handshake */
 	const validateConnection = async() => {
-		logger.info({ browser }, 'connected to WA Web')
-
-		const init = proto.HandshakeMessage.encode({
+		const helloMsg: proto.IHandshakeMessage = {
 			clientHello: { ephemeral: ephemeralKeyPair.public }
-		}).finish()
+		}
+
+		logger.info({ browser, helloMsg }, 'connected to WA Web')
+
+		const init = proto.HandshakeMessage.encode(helloMsg).finish()
 
 		const result = await awaitNextMessage(init)
 		const handshake = proto.HandshakeMessage.decode(result)
 
-		logger.debug('handshake recv from WA Web')
+		logger.trace({ handshake }, 'handshake recv from WA Web')
 
 		const keyEnc = noise.processHandshake(handshake, creds.noiseKey)
 		logger.info('handshake complete')
 
-		let node: Uint8Array
+		let node: proto.IClientPayload
 		if(!creds.me) {
-			logger.info('not logged in, attempting registration...')
 			node = generateRegistrationNode(creds, { version, browser })
+			logger.info({ node }, 'not logged in, attempting registration...')
 		} else {
-			logger.info('logging in...')
 			node = generateLoginNode(creds.me!.id, { version, browser })
+			logger.info({ node }, 'logging in...')
 		}
 
-		const payloadEnc = noise.encrypt(node)
+		const payloadEnc = noise.encrypt(
+			proto.ClientPayload.encode(node).finish()
+		)
 		await sendRawMessage(
 			proto.HandshakeMessage.encode({
 				clientFinish: {
@@ -234,7 +240,7 @@ export const makeSocket = ({
 
 	/** generates and uploads a set of pre-keys */
 	const uploadPreKeys = async() => {
-		await assertingPreKeys(30, async preKeys => {
+		await assertingPreKeys(INITIAL_PREKEY_COUNT, async preKeys => {
 			const node: BinaryNode = {
 				tag: 'iq',
 				attrs: {
@@ -259,6 +265,9 @@ export const makeSocket = ({
 
 	const onMessageRecieved = (data: Buffer) => {
 		noise.decodeFrame(data, frame => {
+			// reset ping timeout
+			lastDateRecv = new Date()
+
 			ws.emit('frame', frame)
 			// if it's a binary node
 			if(!(frame instanceof Uint8Array)) {
@@ -296,7 +305,7 @@ export const makeSocket = ({
 		logger.info({ error }, 'connection closed')
 
 		clearInterval(keepAliveReq)
-		clearInterval(qrTimer)
+		clearTimeout(qrTimer)
 
 		ws.removeAllListeners('close')
 		ws.removeAllListeners('error')
@@ -359,7 +368,7 @@ export const makeSocket = ({
 				end(new Boom('Connection was lost', { statusCode: DisconnectReason.connectionLost }))
 			} else if(ws.readyState === ws.OPEN) {
 				// if its all good, send a keep alive request
-				query(
+				sendNode(
 					{
 						tag: 'iq',
 						attrs: {
@@ -369,14 +378,11 @@ export const makeSocket = ({
 							xmlns: 'w:p',
 						},
 						content: [{ tag: 'ping', attrs: { } }]
-					},
-					keepAliveIntervalMs
+					}
 				)
-					.then(() => {
-						lastDateRecv = new Date()
-						logger.trace('recv keep alive')
+					.catch(err => {
+						logger.error({ trace: err.stack }, 'error in sending keep alive')
 					})
-					.catch(err => end(err))
 			} else {
 				logger.warn('keep alive called when WS not open')
 			}
@@ -450,6 +456,10 @@ export const makeSocket = ({
 
 		let qrMs = 60_000 // time to let a QR live
 		const genPairQR = () => {
+			if(ws.readyState !== ws.OPEN) {
+				return
+			}
+
 			const ref = refs.shift()
 			if(!ref) {
 				end(new Boom('QR refs attempts ended', { statusCode: DisconnectReason.timedOut }))
@@ -542,7 +552,19 @@ export const makeSocket = ({
 		ev.emit('connection.update', { connection: 'connecting', receivedPendingNotifications: false, qr: undefined })
 	})
 	// update credentials when required
-	ev.on('creds.update', update => Object.assign(creds, update))
+	ev.on('creds.update', update => {
+		const name = update.me?.name
+		// if name has just been received
+		if(!creds.me?.name && name) {
+			logger.info({ name }, 'received pushName')
+			sendNode({
+				tag: 'presence',
+				attrs: { name }
+			})
+		}
+
+		Object.assign(creds, update)
+	})
 
 	if(printQRInTerminal) {
 		printQRIfNecessaryListener(ev, logger)
