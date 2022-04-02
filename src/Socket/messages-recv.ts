@@ -5,9 +5,11 @@ import { BaileysEventMap, MessageUserReceipt, SocketConfig, WAMessageStubType } 
 import { debouncedTimeout, decodeMessageStanza, delay, encodeBigEndian, generateSignalPubKey, getStatusFromReceiptType, normalizeMessageContent, xmppPreKey, xmppSignedPreKey } from '../Utils'
 import { makeKeyedMutex, makeMutex } from '../Utils/make-mutex'
 import processMessage from '../Utils/process-message'
-import { areJidsSameUser, BinaryNode, BinaryNodeAttributes, getAllBinaryNodeChildren, getBinaryNodeChildren, isJidGroup, jidDecode, jidEncode, jidNormalizedUser } from '../WABinary'
+import { areJidsSameUser, BinaryNode, BinaryNodeAttributes, getAllBinaryNodeChildren, getBinaryNodeChild, getBinaryNodeChildren, isJidGroup, jidDecode, jidEncode, jidNormalizedUser, S_WHATSAPP_NET } from '../WABinary'
 import { makeChatsSocket } from './chats'
 import { extractGroupMetadata } from './groups'
+
+const MIN_PREKEY_COUNT = 5
 
 export const makeMessagesRecvSocket = (config: SocketConfig) => {
 	const {
@@ -28,6 +30,7 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 		sendReceipt,
 		resyncMainAppState,
 		emitEventsFromMap,
+		uploadPreKeys,
 	} = sock
 
 	/** this mutex ensures that the notifications (receipts, messages etc.) are processed in order */
@@ -139,35 +142,38 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 
 	const processMessageLocal = async(message: proto.IWebMessageInfo) => {
 		const meId = authState.creds.me!.id
-		// send ack for history message
-		const isAnyHistoryMsg = !!message.message && !!normalizeMessageContent(message.message)?.protocolMessage?.historySyncNotification
-		if(isAnyHistoryMsg) {
-			await sendNode({
-				tag: 'receipt',
-				attrs: {
-					id: message.key.id,
-					type: 'hist_sync',
-					to: jidNormalizedUser(meId)
-				}
-			})
-		}
-
 		// process message and emit events
 		const newEvents = await processMessage(
 			message,
 			{ historyCache, meId, keyStore: authState.keys, logger, treatCiphertextMessagesAsReal }
 		)
-
-		if(isAnyHistoryMsg) {
-			logger.debug('restarting app sync timeout')
-			// restart the app state sync timeout
-			appStateSyncTimeout.start()
-		}
-
 		return newEvents
 	}
 
-	const processNotification = (node: BinaryNode): Partial<proto.IWebMessageInfo> => {
+	const handleEncryptNotification = async(node: BinaryNode) => {
+		const from = node.attrs.from
+		if(from === S_WHATSAPP_NET) {
+			const countChild = getBinaryNodeChild(node, 'count')
+			const count = +countChild.attrs.value
+			const shouldUploadMorePreKeys = count < MIN_PREKEY_COUNT
+
+			logger.debug({ count, shouldUploadMorePreKeys }, 'recv pre-key count')
+			if(shouldUploadMorePreKeys) {
+				await uploadPreKeys()
+			}
+		} else {
+			const identityNode = getBinaryNodeChild(node, 'identity')
+			if(identityNode) {
+				logger.info({ jid: from }, 'identity changed')
+				// not handling right now
+				// signal will override new identity anyway
+			} else {
+				logger.info({ node }, 'unknown encrypt notification')
+			}
+		}
+	}
+
+	const processNotification = async(node: BinaryNode): Promise<Partial<proto.IWebMessageInfo>> => {
 		const result: Partial<proto.IWebMessageInfo> = { }
 		const [child] = getAllBinaryNodeChildren(node)
 
@@ -243,6 +249,9 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 				}
 
 				break
+			case 'encrypt':
+				handleEncryptNotification(node)
+				break
 			}
 		}
 
@@ -250,72 +259,6 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 			return result
 		}
 	}
-
-	// recv a message
-	ws.on('CB:message', (stanza: BinaryNode) => {
-		const { fullMessage: msg, decryptionTask } = decodeMessageStanza(stanza, authState)
-		processingMutex.mutex(
-			msg.key.remoteJid!,
-			async() => {
-				await decryptionTask
-				// message failed to decrypt
-				if(msg.messageStubType === proto.WebMessageInfo.WebMessageInfoStubType.CIPHERTEXT) {
-					logger.error(
-						{ msgId: msg.key.id, params: msg.messageStubParameters },
-						'failure in decrypting message'
-					)
-					retryMutex.mutex(
-						async() => {
-							if(ws.readyState === ws.OPEN) {
-								await sendRetryRequest(stanza)
-								if(retryRequestDelayMs) {
-									await delay(retryRequestDelayMs)
-								}
-							} else {
-								logger.debug({ stanza }, 'connection closed, ignoring retry req')
-							}
-						}
-					)
-				} else {
-					await sendMessageAck(stanza, { class: 'receipt' })
-					// no type in the receipt => message delivered
-					await sendReceipt(msg.key.remoteJid!, msg.key.participant, [msg.key.id!], undefined)
-					logger.debug({ msg: msg.key }, 'sent delivery receipt')
-				}
-
-				msg.key.remoteJid = jidNormalizedUser(msg.key.remoteJid!)
-				ev.emit('messages.upsert', { messages: [msg], type: stanza.attrs.offline ? 'append' : 'notify' })
-			}
-		)
-			.catch(
-				error => onUnexpectedError(error, 'processing message')
-			)
-	})
-
-	ws.on('CB:ack,class:message', async(node: BinaryNode) => {
-		sendNode({
-			tag: 'ack',
-			attrs: {
-				class: 'receipt',
-				id: node.attrs.id,
-				from: node.attrs.from
-			}
-		})
-			.catch(err => onUnexpectedError(err, 'ack message receipt'))
-		logger.debug({ attrs: node.attrs }, 'sending receipt for ack')
-	})
-
-	ws.on('CB:call', async(node: BinaryNode) => {
-		logger.info({ node }, 'recv call')
-
-		const [child] = getAllBinaryNodeChildren(node)
-		if(!!child?.tag) {
-			sendMessageAck(node, { class: 'call', type: child.tag })
-				.catch(
-					error => onUnexpectedError(error, 'ack call')
-				)
-		}
-	})
 
 	const sendMessagesAgain = async(key: proto.IMessageKey, ids: string[]) => {
 		const msgs = await Promise.all(
@@ -431,8 +374,8 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 		await sendMessageAck(node, { class: 'notification', type: node.attrs.type })
 		await processingMutex.mutex(
 			remoteJid,
-			() => {
-				const msg = processNotification(node)
+			async() => {
+				const msg = await processNotification(node)
 				if(msg) {
 					const fromMe = areJidsSameUser(node.attrs.participant || node.attrs.from, authState.creds.me!.id)
 					msg.key = {
@@ -482,6 +425,86 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 			}
 		}
 	}
+
+	// recv a message
+	ws.on('CB:message', (stanza: BinaryNode) => {
+		const { fullMessage: msg, category, decryptionTask } = decodeMessageStanza(stanza, authState)
+		processingMutex.mutex(
+			msg.key.remoteJid!,
+			async() => {
+				await decryptionTask
+				// message failed to decrypt
+				if(msg.messageStubType === proto.WebMessageInfo.WebMessageInfoStubType.CIPHERTEXT) {
+					logger.error(
+						{ msgId: msg.key.id, params: msg.messageStubParameters },
+						'failure in decrypting message'
+					)
+					retryMutex.mutex(
+						async() => {
+							if(ws.readyState === ws.OPEN) {
+								await sendRetryRequest(stanza)
+								if(retryRequestDelayMs) {
+									await delay(retryRequestDelayMs)
+								}
+							} else {
+								logger.debug({ stanza }, 'connection closed, ignoring retry req')
+							}
+						}
+					)
+				} else {
+					await sendMessageAck(stanza, { class: 'receipt' })
+					// no type in the receipt => message delivered
+					await sendReceipt(msg.key.remoteJid!, msg.key.participant, [msg.key.id!], undefined)
+
+					// send ack for history message
+					const normalizedContent = !!msg.message ? normalizeMessageContent(msg.message) : undefined
+					const isAnyHistoryMsg = !!normalizedContent?.protocolMessage?.historySyncNotification
+					if(isAnyHistoryMsg) {
+						await sendReceipt(msg.key.remoteJid!, undefined, [msg.key.id], 'hist_sync')
+						// we only want to sync app state once we've all the history
+						// restart the app state sync timeout
+						logger.debug('restarting app sync timeout')
+						appStateSyncTimeout.start()
+					}
+
+					if(category === 'peer') {
+						await sendReceipt(msg.key.remoteJid!, undefined, [msg.key.id], 'peer_msg')
+					}
+				}
+
+				msg.key.remoteJid = jidNormalizedUser(msg.key.remoteJid!)
+				ev.emit('messages.upsert', { messages: [msg], type: stanza.attrs.offline ? 'append' : 'notify' })
+			}
+		)
+			.catch(
+				error => onUnexpectedError(error, 'processing message')
+			)
+	})
+
+	ws.on('CB:ack,class:message', async(node: BinaryNode) => {
+		sendNode({
+			tag: 'ack',
+			attrs: {
+				class: 'receipt',
+				id: node.attrs.id,
+				from: node.attrs.from
+			}
+		})
+			.catch(err => onUnexpectedError(err, 'ack message receipt'))
+		logger.debug({ attrs: node.attrs }, 'sending receipt for ack')
+	})
+
+	ws.on('CB:call', async(node: BinaryNode) => {
+		logger.info({ node }, 'recv call')
+
+		const [child] = getAllBinaryNodeChildren(node)
+		if(!!child?.tag) {
+			sendMessageAck(node, { class: 'call', type: child.tag })
+				.catch(
+					error => onUnexpectedError(error, 'ack call')
+				)
+		}
+	})
 
 	ws.on('CB:receipt', node => {
 		handleReceipt(node)
