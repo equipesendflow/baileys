@@ -3,8 +3,8 @@ import NodeCache from 'node-cache'
 import { proto } from '../../WAProto'
 import { WA_DEFAULT_EPHEMERAL } from '../Defaults'
 import { AnyMessageContent, MediaConnInfo, MessageReceiptType, MessageRelayOptions, MiscMessageGenerationOptions, SocketConfig } from '../Types'
-import { encodeWAMessage, encryptSenderKeyMsgSignalProto, encryptSignalProto, extractDeviceJids, generateMessageID, generateWAMessage, getWAUploadToServer, jidToSignalProtocolAddress, parseAndInjectE2ESessions } from '../Utils'
-import { BinaryNode, BinaryNodeAttributes, getBinaryNodeChild, getBinaryNodeChildren, isJidGroup, jidDecode, jidEncode, jidNormalizedUser, JidWithDevice, reduceBinaryNodeToDictionary, S_WHATSAPP_NET } from '../WABinary'
+import { encodeWAMessage, encryptSenderKeyMsgSignalProto, encryptSignalProto, extractDeviceJids, generateMessageID, generateWAMessage, getWAUploadToServer, jidToSignalProtocolAddress, parseAndInjectE2ESessions, unixTimestampSeconds } from '../Utils'
+import { BinaryNode, BinaryNodeAttributes, getBinaryNodeChild, getBinaryNodeChildren, isJidGroup, isJidUser, jidDecode, jidEncode, jidNormalizedUser, JidWithDevice, reduceBinaryNodeToDictionary, S_WHATSAPP_NET } from '../WABinary'
 import { makeGroupsSocket } from './groups'
 
 export const makeMessagesSocket = (config: SocketConfig) => {
@@ -85,16 +85,25 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 			tag: 'receipt',
 			attrs: {
 				id: messageIds[0],
-				t: Date.now().toString(),
-				to: jid,
 			},
 		}
-		if(type) {
-			node.attrs.type = type
+		const isReadReceipt = type === 'read' || type === 'read-self'
+		if(isReadReceipt) {
+			node.attrs.t = unixTimestampSeconds().toString()
 		}
 
-		if(participant) {
-			node.attrs.participant = participant
+		if(type === 'sender' && isJidUser(jid)) {
+			node.attrs.recipient = jid
+			node.attrs.to = participant
+		} else {
+			node.attrs.to = jid
+			if(participant) {
+				node.attrs.participant = participant
+			}
+		}
+
+		if(type) {
+			node.attrs.type = type
 		}
 
 		const remainingMessageIds = messageIds.slice(1)
@@ -111,7 +120,7 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 			]
 		}
 
-		logger.debug({ jid, messageIds, type }, 'sending receipt for messages')
+		logger.debug({ attrs: node.attrs, messageIds }, 'sending receipt for messages')
 		await sendNode(node)
 	}
 

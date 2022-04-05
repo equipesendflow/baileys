@@ -1,11 +1,11 @@
 
 import { proto } from '../../WAProto'
 import { KEY_BUNDLE_TYPE } from '../Defaults'
-import { BaileysEventMap, MessageUserReceipt, SocketConfig, WAMessageStubType } from '../Types'
+import { BaileysEventMap, MessageReceiptType, MessageUserReceipt, SocketConfig, WAMessageStubType } from '../Types'
 import { debouncedTimeout, decodeMessageStanza, delay, encodeBigEndian, generateSignalPubKey, getStatusFromReceiptType, normalizeMessageContent, xmppPreKey, xmppSignedPreKey } from '../Utils'
 import { makeKeyedMutex, makeMutex } from '../Utils/make-mutex'
 import processMessage from '../Utils/process-message'
-import { areJidsSameUser, BinaryNode, BinaryNodeAttributes, getAllBinaryNodeChildren, getBinaryNodeChild, getBinaryNodeChildren, isJidGroup, jidDecode, jidEncode, jidNormalizedUser, S_WHATSAPP_NET } from '../WABinary'
+import { areJidsSameUser, BinaryNode, BinaryNodeAttributes, getAllBinaryNodeChildren, getBinaryNodeChild, getBinaryNodeChildren, isJidGroup, isJidUser, jidDecode, jidEncode, jidNormalizedUser, S_WHATSAPP_NET } from '../WABinary'
 import { makeChatsSocket } from './chats'
 import { extractGroupMetadata } from './groups'
 
@@ -140,13 +140,26 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 		})
 	}
 
-	const processMessageLocal = async(message: proto.IWebMessageInfo) => {
+	const processMessageLocal = async(msg: proto.IWebMessageInfo) => {
 		const meId = authState.creds.me!.id
 		// process message and emit events
 		const newEvents = await processMessage(
-			message,
+			msg,
 			{ historyCache, meId, keyStore: authState.keys, logger, treatCiphertextMessagesAsReal }
 		)
+
+		// send ack for history message
+		const normalizedContent = !!msg.message ? normalizeMessageContent(msg.message) : undefined
+		const isAnyHistoryMsg = !!normalizedContent?.protocolMessage?.historySyncNotification
+		if(isAnyHistoryMsg) {
+			const jid = jidEncode(jidDecode(msg.key.remoteJid!).user, 'c.us')
+			await sendReceipt(jid, undefined, [msg.key.id], 'hist_sync')
+			// we only want to sync app state once we've all the history
+			// restart the app state sync timeout
+			logger.debug('restarting app sync timeout')
+			appStateSyncTimeout.start()
+		}
+
 		return newEvents
 	}
 
@@ -428,7 +441,7 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 
 	// recv a message
 	ws.on('CB:message', (stanza: BinaryNode) => {
-		const { fullMessage: msg, category, decryptionTask } = decodeMessageStanza(stanza, authState)
+		const { fullMessage: msg, category, author, decryptionTask } = decodeMessageStanza(stanza, authState)
 		processingMutex.mutex(
 			msg.key.remoteJid!,
 			async() => {
@@ -454,22 +467,19 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 				} else {
 					await sendMessageAck(stanza, { class: 'receipt' })
 					// no type in the receipt => message delivered
-					await sendReceipt(msg.key.remoteJid!, msg.key.participant, [msg.key.id!], undefined)
-
-					// send ack for history message
-					const normalizedContent = !!msg.message ? normalizeMessageContent(msg.message) : undefined
-					const isAnyHistoryMsg = !!normalizedContent?.protocolMessage?.historySyncNotification
-					if(isAnyHistoryMsg) {
-						await sendReceipt(msg.key.remoteJid!, undefined, [msg.key.id], 'hist_sync')
-						// we only want to sync app state once we've all the history
-						// restart the app state sync timeout
-						logger.debug('restarting app sync timeout')
-						appStateSyncTimeout.start()
+					let type: MessageReceiptType = undefined
+					let participant = msg.key.participant
+					if(category === 'peer') { // special peer message
+						type = 'peer_msg'
+					} else if(msg.key.fromMe) { // message was sent by us from a different device
+						type = 'sender'
+						// need to specially handle this case
+						if(isJidUser(msg.key.remoteJid)) {
+							participant = author
+						}
 					}
 
-					if(category === 'peer') {
-						await sendReceipt(msg.key.remoteJid!, undefined, [msg.key.id], 'peer_msg')
-					}
+					await sendReceipt(msg.key.remoteJid!, participant, [msg.key.id!], type)
 				}
 
 				msg.key.remoteJid = jidNormalizedUser(msg.key.remoteJid!)
