@@ -181,7 +181,7 @@ export const makeSocket = ({
 		}
 		helloMsg = proto.HandshakeMessage.fromObject(helloMsg)
 
-		logger.info({ browser, helloMsg }, 'connected to WA Web')
+		logger.debug('connected to WA Web')
 
 		const init = proto.HandshakeMessage.encode(helloMsg).finish()
 
@@ -191,15 +191,15 @@ export const makeSocket = ({
 		logger.trace({ handshake }, 'handshake recv from WA Web')
 
 		const keyEnc = noise.processHandshake(handshake, creds.noiseKey)
-		logger.info('handshake complete')
+		logger.debug('handshake complete')
 
 		let node: proto.IClientPayload
 		if(!creds.me) {
 			node = generateRegistrationNode(creds, { version, browser })
-			logger.info({ node }, 'not logged in, attempting registration...')
+			logger.debug( 'not logged in, attempting registration...')
 		} else {
 			node = generateLoginNode(creds.me!.id, { version, browser })
-			logger.info({ node }, 'logging in...')
+			logger.debug( 'logging in...')
 		}
 
 		const payloadEnc = noise.encrypt(
@@ -531,7 +531,7 @@ export const makeSocket = ({
 
 		await sendPassiveIq('active')
 
-		logger.info('opened connection to WA')
+		logger.debug('opened connection to WA')
 		clearTimeout(qrTimer) // will never happen in all likelyhood -- but just in case WA sends success on first try
 
 		ev.emit('connection.update', { connection: 'open' })
@@ -541,7 +541,7 @@ export const makeSocket = ({
 		const child = getBinaryNodeChild(node, 'offline')
 		const offlineCount = +child.attrs.count
 
-		logger.info(`got ${offlineCount} offline messages/notifications`)
+		logger.debug(`got ${offlineCount} offline messages/notifications`)
 
 		ev.emit('connection.update', { receivedPendingNotifications: true })
 	})
