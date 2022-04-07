@@ -591,9 +591,9 @@ export const processSyncActions = (
 			map['creds.update'] = map['creds.update'] || { }
 			map['creds.update'].accountSettings = { unarchiveChats: !!action.unarchiveChatsSetting.unarchiveChats }
 
-			logger.info(`archive setting updated => '${action.unarchiveChatsSetting.unarchiveChats}'`)
+			logger.debug(`archive setting updated => '${action.unarchiveChatsSetting.unarchiveChats}'`)
 		} else {
-			logger.warn({ action, id }, 'unprocessable update')
+			logger.debug({ action, id }, 'unprocessable update')
 		}
 
 		if(Object.keys(update).length > 1) {

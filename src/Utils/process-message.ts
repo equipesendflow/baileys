@@ -74,7 +74,7 @@ const processMessage = async(
 						for(const { keyData, keyId } of keys) {
 							const strKeyId = Buffer.from(keyId.keyId!).toString('base64')
 
-							logger?.info({ strKeyId }, 'injecting new app state sync key')
+							logger?.debug({ strKeyId }, 'injecting new app state sync key')
 							await keyStore.set({ 'app-state-sync-key': { [strKeyId]: keyData } })
 
 							newAppStateSyncKeyId = strKeyId
@@ -84,7 +84,7 @@ const processMessage = async(
 
 				map['creds.update'] = { myAppStateKeyId: newAppStateSyncKeyId }
 			} else {
-				logger?.info({ protocolMsg }, 'recv app state sync with 0 keys')
+				logger?.debug({ protocolMsg }, 'recv app state sync with 0 keys')
 			}
 
 			break
