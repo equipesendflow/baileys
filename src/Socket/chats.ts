@@ -466,6 +466,10 @@ export const makeChatsSocket = (config: SocketConfig) => {
 	const processSyncActionsLocal = (actions: ChatMutation[]) => {
 		const events = processSyncActions(actions, authState.creds.me!, logger)
 		emitEventsFromMap(events)
+		// resend available presence to update name on servers
+		if(events['creds.update']?.me?.name) {
+			sendPresenceUpdate('available')
+		}
 	}
 
 	const appPatch = async(patchCreate: WAPatchCreate) => {
@@ -542,7 +546,6 @@ export const makeChatsSocket = (config: SocketConfig) => {
 				to: S_WHATSAPP_NET,
 				xmlns: 'abt',
 				type: 'get',
-				id: generateMessageTag(),
 			},
 			content: [
 				{ tag: 'props', attrs: { protocol: '1' } }
@@ -569,7 +572,6 @@ export const makeChatsSocket = (config: SocketConfig) => {
 				to: S_WHATSAPP_NET,
 				xmlns: 'w',
 				type: 'get',
-				id: generateMessageTag(),
 			},
 			content: [
 				{ tag: 'props', attrs: { } }
