@@ -1,15 +1,13 @@
 
 import { proto } from '../../WAProto'
-import { KEY_BUNDLE_TYPE } from '../Defaults'
+import { KEY_BUNDLE_TYPE, MIN_PREKEY_COUNT } from '../Defaults'
 import { BaileysEventMap, MessageReceiptType, MessageUserReceipt, SocketConfig, WAMessageStubType } from '../Types'
-import { debouncedTimeout, decodeMessageStanza, delay, encodeBigEndian, generateSignalPubKey, getStatusFromReceiptType, normalizeMessageContent, xmppPreKey, xmppSignedPreKey } from '../Utils'
+import { debouncedTimeout, decodeMessageStanza, delay, encodeBigEndian, generateSignalPubKey, getNextPreKeys, getStatusFromReceiptType, normalizeMessageContent, xmppPreKey, xmppSignedPreKey } from '../Utils'
 import { makeKeyedMutex, makeMutex } from '../Utils/make-mutex'
 import processMessage from '../Utils/process-message'
 import { areJidsSameUser, BinaryNode, BinaryNodeAttributes, getAllBinaryNodeChildren, getBinaryNodeChild, getBinaryNodeChildren, isJidGroup, isJidUser, jidDecode, jidEncode, jidNormalizedUser, S_WHATSAPP_NET } from '../WABinary'
 import { makeChatsSocket } from './chats'
 import { extractGroupMetadata } from './groups'
-
-const MIN_PREKEY_COUNT = 5
 
 export const makeMessagesRecvSocket = (config: SocketConfig) => {
 	const {
@@ -24,7 +22,6 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 		ws,
 		onUnexpectedError,
 		assertSessions,
-		assertingPreKeys,
 		sendNode,
 		relayMessage,
 		sendReceipt,
@@ -80,64 +77,70 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 		const { account, signedPreKey, signedIdentityKey: identityKey } = authState.creds
 
 		const deviceIdentity = proto.ADVSignedDeviceIdentity.encode(account).finish()
-		await assertingPreKeys(1, async preKeys => {
-			const [keyId] = Object.keys(preKeys)
-			const key = preKeys[+keyId]
+		await authState.keys.transaction(
+			async() => {
+				const { update, preKeys } = await getNextPreKeys(authState, 1)
 
-			const decFrom = node.attrs.from ? jidDecode(node.attrs.from) : undefined
-			const receipt: BinaryNode = {
-				tag: 'receipt',
-				attrs: {
-					id: msgId,
-					type: 'retry',
-					to: isGroup ? node.attrs.from : jidEncode(decFrom!.user, 's.whatsapp.net', decFrom!.device, 0)
-				},
-				content: [
-					{
-						tag: 'retry',
-						attrs: {
-							count: retryCount.toString(),
-							id: node.attrs.id,
-							t: node.attrs.t,
-							v: '1'
-						}
+				const [keyId] = Object.keys(preKeys)
+				const key = preKeys[+keyId]
+
+				const decFrom = node.attrs.from ? jidDecode(node.attrs.from) : undefined
+				const receipt: BinaryNode = {
+					tag: 'receipt',
+					attrs: {
+						id: msgId,
+						type: 'retry',
+						to: isGroup ? node.attrs.from : jidEncode(decFrom!.user, 's.whatsapp.net', decFrom!.device, 0)
 					},
-					{
-						tag: 'registration',
-						attrs: { },
-						content: encodeBigEndian(authState.creds.registrationId)
-					}
-				]
-			}
-
-			if(node.attrs.recipient) {
-				receipt.attrs.recipient = node.attrs.recipient
-			}
-
-			if(node.attrs.participant) {
-				receipt.attrs.participant = node.attrs.participant
-			}
-
-			if(retryCount > 1) {
-				const exec = generateSignalPubKey(Buffer.from(KEY_BUNDLE_TYPE)).slice(0, 1)
-				const content = receipt.content! as BinaryNode[]
-				content.push({
-					tag: 'keys',
-					attrs: { },
 					content: [
-						{ tag: 'type', attrs: { }, content: exec },
-						{ tag: 'identity', attrs: { }, content: identityKey.public },
-						xmppPreKey(key, +keyId),
-						xmppSignedPreKey(signedPreKey),
-						{ tag: 'device-identity', attrs: { }, content: deviceIdentity }
+						{
+							tag: 'retry',
+							attrs: {
+								count: retryCount.toString(),
+								id: node.attrs.id,
+								t: node.attrs.t,
+								v: '1'
+							}
+						},
+						{
+							tag: 'registration',
+							attrs: { },
+							content: encodeBigEndian(authState.creds.registrationId)
+						}
 					]
-				})
+				}
+
+				if(node.attrs.recipient) {
+					receipt.attrs.recipient = node.attrs.recipient
+				}
+
+				if(node.attrs.participant) {
+					receipt.attrs.participant = node.attrs.participant
+				}
+
+				if(retryCount > 1) {
+					const exec = generateSignalPubKey(Buffer.from(KEY_BUNDLE_TYPE)).slice(0, 1)
+					const content = receipt.content! as BinaryNode[]
+					content.push({
+						tag: 'keys',
+						attrs: { },
+						content: [
+							{ tag: 'type', attrs: { }, content: exec },
+							{ tag: 'identity', attrs: { }, content: identityKey.public },
+							xmppPreKey(key, +keyId),
+							xmppSignedPreKey(signedPreKey),
+							{ tag: 'device-identity', attrs: { }, content: deviceIdentity }
+						]
+					})
+				}
+
+				await sendNode(receipt)
+
+				logger.info({ msgAttrs: node.attrs, retryCount }, 'sent retry receipt')
+
+				ev.emit('creds.update', update)
 			}
-
-			await sendNode(receipt)
-
-			logger.info({ msgAttrs: node.attrs, retryCount }, 'sent retry receipt')
-		})
+		)
 	}
 
 	const processMessageLocal = async(msg: proto.IWebMessageInfo) => {
@@ -273,6 +276,11 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 		}
 	}
 
+	const willSendMessageAgain = (id: string) => {
+		const retryCount = msgRetryMap[id] || 0
+		return retryCount < 5
+	}
+
 	const sendMessagesAgain = async(key: proto.IMessageKey, ids: string[]) => {
 		const msgs = await Promise.all(
 			ids.map(id => (
@@ -291,6 +299,7 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 
 		for(let i = 0; i < msgs.length;i++) {
 			if(msgs[i]) {
+				msgRetryMap[ids[i]] = (msgRetryMap[ids[i]] || 0) + 1
 				await relayMessage(key.remoteJid, msgs[i], {
 					messageId: ids[i],
 					participant
@@ -360,18 +369,22 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 				}
 
 				if(attrs.type === 'retry') {
-					// correctly set who is asking for the retry
-					key.participant = key.participant || attrs.from
-					if(key.fromMe) {
-						try {
-							logger.debug({ attrs, key }, 'recv retry request')
-							await sendMessagesAgain(key, ids)
-						} catch(error) {
-							logger.error({ key, ids, trace: error.stack }, 'error in sending message again')
-							shouldAck = false
+					if(willSendMessageAgain(ids[0])) {
+						// correctly set who is asking for the retry
+						key.participant = key.participant || attrs.from
+						if(key.fromMe) {
+							try {
+								logger.debug({ attrs, key }, 'recv retry request')
+								await sendMessagesAgain(key, ids)
+							} catch(error) {
+								logger.error({ key, ids, trace: error.stack }, 'error in sending message again')
+								shouldAck = false
+							}
+						} else {
+							logger.info({ attrs, key }, 'recv retry for not fromMe message')
 						}
 					} else {
-						logger.info({ attrs, key }, 'recv retry for not fromMe message')
+						logger.info({ attrs, key }, 'will not send message again, as sent too many times')
 					}
 				}
 

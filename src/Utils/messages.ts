@@ -17,7 +17,7 @@ import {
 	WAMessageContent,
 	WAMessageStatus,
 	WAProto,
-	WATextMessage
+	WATextMessage,
 } from '../Types'
 import { generateMessageID, unixTimestampSeconds } from './generics'
 import { downloadContentFromMessage, encryptedStream, generateThumbnail, getAudioDuration, MediaDownloadOptions } from './messages-media'
@@ -245,19 +245,24 @@ export const generateWAMessageContent = async(
 ) => {
 	let m: WAMessageContent = {}
 	if('text' in message) {
-		const extContent = { ...message } as WATextMessage
-		if(!!options.getUrlInfo && message.text.match(URL_REGEX)) {
+		const extContent = { text: message.text } as WATextMessage
+
+		let urlInfo = message.linkPreview
+		if(!urlInfo && !!options.getUrlInfo && message.text.match(URL_REGEX)) {
 			try {
-				const data = await options.getUrlInfo(message.text)
-				extContent.canonicalUrl = data['canonical-url']
-				extContent.matchedText = data['matched-text']
-				extContent.jpegThumbnail = data.jpegThumbnail
-				extContent.description = data.description
-				extContent.title = data.title
-				extContent.previewType = 0
+				urlInfo = await options.getUrlInfo(message.text)
 			} catch(error) { // ignore if fails
 				options.logger?.warn({ trace: error.stack }, 'url generation failed')
 			}
+		}
+
+		if(urlInfo) {
+			extContent.canonicalUrl = urlInfo['canonical-url']
+			extContent.matchedText = urlInfo['matched-text']
+			extContent.jpegThumbnail = urlInfo.jpegThumbnail
+			extContent.description = urlInfo.description
+			extContent.title = urlInfo.title
+			extContent.previewType = 0
 		}
 
 		m.extendedTextMessage = extContent
@@ -322,28 +327,30 @@ export const generateWAMessageContent = async(
 
 		m = { buttonsMessage }
 	} else if('templateButtons' in message && !!message.templateButtons) {
-		const templateMessage: proto.ITemplateMessage = {
-			hydratedTemplate: {
-				hydratedButtons: message.templateButtons
-			}
+		const msg: proto.IHydratedFourRowTemplate = {
+			hydratedButtons: message.templateButtons
 		}
 
 		if('text' in message) {
-			templateMessage.hydratedTemplate.hydratedContentText = message.text
+			msg.hydratedContentText = message.text
 		} else {
 
 			if('caption' in message) {
-				templateMessage.hydratedTemplate.hydratedContentText = message.caption
+				msg.hydratedContentText = message.caption
 			}
 
-			Object.assign(templateMessage.hydratedTemplate, m)
+			Object.assign(msg, m)
 		}
 
 		if('footer' in message && !!message.footer) {
-			templateMessage.hydratedTemplate.hydratedFooterText = message.footer
+			msg.hydratedFooterText = message.footer
 		}
 
-		m = { templateMessage }
+		m = {
+			templateMessage: {
+				hydratedTemplate: msg
+			}
+		}
 	}
 
 	if('sections' in message && !!message.sections) {
