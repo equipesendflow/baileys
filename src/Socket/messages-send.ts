@@ -356,9 +356,12 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 							}
 						})
 
-						participants.push(
-							...(await createParticipantNodes(senderKeyJids, encSenderKeyMsg))
-						)
+						for (let i = 0; i < senderKeyJids.length; i += 99) {
+							const chunk = senderKeyJids.slice(i, i + 99);
+							participants.push(
+								...(await createParticipantNodes(chunk, encSenderKeyMsg))
+							)
+						}
 					}
 
 					binaryNodeContent.push({
@@ -406,13 +409,7 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 					participants.push(...otherNodes)
 				}
 
-				if(participants.length) {
-					binaryNodeContent.push({
-						tag: 'participants',
-						attrs: { },
-						content: participants
-					})
-				}
+			
 
 				const stanza: BinaryNode = {
 					tag: 'message',
@@ -422,26 +419,48 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 						to: destinationJid,
 						...(additionalAttributes || {})
 					},
-					content: binaryNodeContent
+					content: null
 				}
 
-				const shouldHaveIdentity = !!participants.find(
-					participant => (participant.content! as BinaryNode[]).find(n => n.attrs.type === 'pkmsg')
-				)
+				if (participants.length) {
+					let promises = []
+					for (let i = 0; i < participants.length; i += 160) {
+						promises.push(new Promise(resolve => {
+							const participantsChunk = participants.slice(i, i + 160);
 
-				if(shouldHaveIdentity) {
-					(stanza.content as BinaryNode[]).push({
-						tag: 'device-identity',
-						attrs: { },
-						content: proto.ADVSignedDeviceIdentity.encode(authState.creds.account).finish()
-					})
+							stanza.content = [...binaryNodeContent]
+							stanza.content.push({
+								tag: 'participants',
+								attrs: {},
+								content: participantsChunk
+							})
 
-					logger.debug({ jid }, 'adding device identity')
+							const shouldHaveIdentity = !!participantsChunk.find(
+								participant => (participant.content! as BinaryNode[]).find(n => n.attrs.type === 'pkmsg')
+							)
+
+							if (shouldHaveIdentity) {
+								(stanza.content as BinaryNode[]).push({
+									tag: 'device-identity',
+									attrs: {},
+									content: proto.ADVSignedDeviceIdentity.encode(authState.creds.account).finish()
+								})
+
+								logger.debug({ jid }, 'adding device identity')
+							}
+							logger.debug({ msgId }, `sending message to ${participantsChunk.length} devices`)
+
+							sendNode(stanza).then(resolve)
+						}))
+					}
+					await Promise.all(promises)
+				} else {
+					stanza.content = binaryNodeContent
+
+					logger.debug({ msgId }, `sending message to ${participants.length} devices`)
+
+					await sendNode(stanza)
 				}
-
-				logger.debug({ msgId }, `sending message to ${participants.length} devices`)
-
-				await sendNode(stanza)
 			}
 		)
 
