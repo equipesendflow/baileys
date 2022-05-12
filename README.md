@@ -226,6 +226,8 @@ export type BaileysEventMap = {
 
     'blocklist.set': { blocklist: string[] }
     'blocklist.update': { blocklist: string[], type: 'add' | 'remove' }
+    /** Receive an update on a call, including when the call was received, rejected, accepted */
+    'call': WACallEvent[]
 }
 ```
 
@@ -468,7 +470,7 @@ const buttons = [
 const buttonMessage = {
     image: {url: 'https://example.com/image.jpeg'},
     caption: "Hi it's button message",
-    footerText: 'Hello World',
+    footer: 'Hello World',
     buttons: buttons,
     headerType: 4
 }
