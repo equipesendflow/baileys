@@ -454,56 +454,56 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 	}
 
 	// recv a message
-	// ws.on('CB:message', (stanza: BinaryNode) => {
-		// const { fullMessage: msg, category, author, decryptionTask } = decodeMessageStanza(stanza, authState)
-		// processingMutex.mutex(
-		// 	msg.key.remoteJid!,
-		// 	async() => {
-		// 		await decryptionTask
-		// 		// message failed to decrypt
-		// 		if(msg.messageStubType === proto.WebMessageInfo.WebMessageInfoStubType.CIPHERTEXT) {
-		// 			logger.error(
-		// 				{ msgId: msg.key.id, params: msg.messageStubParameters },
-		// 				'failure in decrypting message'
-		// 			)
-		// 			retryMutex.mutex(
-		// 				async() => {
-		// 					if(ws.readyState === ws.OPEN) {
-		// 						await sendRetryRequest(stanza)
-		// 						if(retryRequestDelayMs) {
-		// 							await delay(retryRequestDelayMs)
-		// 						}
-		// 					} else {
-		// 						logger.debug({ stanza }, 'connection closed, ignoring retry req')
-		// 					}
-		// 				}
-		// 			)
-		// 		} else {
-		// 			await sendMessageAck(stanza, { class: 'receipt' })
-		// 			// no type in the receipt => message delivered
-		// 			let type: MessageReceiptType = undefined
-		// 			let participant = msg.key.participant
-		// 			if(category === 'peer') { // special peer message
-		// 				type = 'peer_msg'
-		// 			} else if(msg.key.fromMe) { // message was sent by us from a different device
-		// 				type = 'sender'
-		// 				// need to specially handle this case
-		// 				if(isJidUser(msg.key.remoteJid)) {
-		// 					participant = author
-		// 				}
-		// 			}
+	ws.on('CB:message', (stanza: BinaryNode) => {
+		const { fullMessage: msg, category, author, decryptionTask } = decodeMessageStanza(stanza, authState)
+		processingMutex.mutex(
+			msg.key.remoteJid!,
+			async() => {
+				await decryptionTask
+				// message failed to decrypt
+				if(msg.messageStubType === proto.WebMessageInfo.WebMessageInfoStubType.CIPHERTEXT) {
+					logger.error(
+						{ msgId: msg.key.id, params: msg.messageStubParameters },
+						'failure in decrypting message'
+					)
+					retryMutex.mutex(
+						async() => {
+							if(ws.readyState === ws.OPEN) {
+								await sendRetryRequest(stanza)
+								if(retryRequestDelayMs) {
+									await delay(retryRequestDelayMs)
+								}
+							} else {
+								logger.debug({ stanza }, 'connection closed, ignoring retry req')
+							}
+						}
+					)
+				} else {
+					await sendMessageAck(stanza, { class: 'receipt' })
+					// no type in the receipt => message delivered
+					let type: MessageReceiptType = undefined
+					let participant = msg.key.participant
+					if(category === 'peer') { // special peer message
+						type = 'peer_msg'
+					} else if(msg.key.fromMe) { // message was sent by us from a different device
+						type = 'sender'
+						// need to specially handle this case
+						if(isJidUser(msg.key.remoteJid)) {
+							participant = author
+						}
+					}
 
-		// 			await sendReceipt(msg.key.remoteJid!, participant, [msg.key.id!], type)
-		// 		}
+					await sendReceipt(msg.key.remoteJid!, participant, [msg.key.id!], type)
+				}
 
-		// 		msg.key.remoteJid = jidNormalizedUser(msg.key.remoteJid!)
-		// 		ev.emit('messages.upsert', { messages: [msg], type: stanza.attrs.offline ? 'append' : 'notify' })
-		// 	}
-		// )
-		// 	.catch(
-		// 		error => onUnexpectedError(error, 'processing message')
-		// 	)
-	// })
+				msg.key.remoteJid = jidNormalizedUser(msg.key.remoteJid!)
+				ev.emit('messages.upsert', { messages: [msg], type: stanza.attrs.offline ? 'append' : 'notify' })
+			}
+		)
+			.catch(
+				error => onUnexpectedError(error, 'processing message')
+			)
+	})
 
 	ws.on('CB:ack,class:message', async(node: BinaryNode) => {
 		sendNode({
