@@ -283,32 +283,32 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 	}
 
 	const sendMessagesAgain = async(key: proto.IMessageKey, ids: string[]) => {
-		const msgs = await Promise.all(
-			ids.map(id => (
-				config.getMessage({ ...key, id })
-			))
-		)
+		// const msgs = await Promise.all(
+		// 	ids.map(id => (
+		// 		config.getMessage({ ...key, id })
+		// 	))
+		// )
 
-		const participant = key.participant || key.remoteJid
-		await assertSessions([participant], true)
+		// const participant = key.participant || key.remoteJid
+		// await assertSessions([participant], true)
 
-		if(isJidGroup(key.remoteJid)) {
-			await authState.keys.set({ 'sender-key-memory': { [key.remoteJid]: null } })
-		}
+		// if(isJidGroup(key.remoteJid)) {
+		// 	await authState.keys.set({ 'sender-key-memory': { [key.remoteJid]: null } })
+		// }
 
-		logger.debug({ participant }, 'forced new session for retry recp')
+		// logger.debug({ participant }, 'forced new session for retry recp')
 
-		for(let i = 0; i < msgs.length;i++) {
-			if(msgs[i]) {
-				msgRetryMap[ids[i]] = (msgRetryMap[ids[i]] || 0) + 1
-				await relayMessage(key.remoteJid, msgs[i], {
-					messageId: ids[i],
-					participant
-				})
-			} else {
-				logger.debug({ jid: key.remoteJid, id: ids[i] }, 'recv retry request, but message not available')
-			}
-		}
+		// for(let i = 0; i < msgs.length;i++) {
+		// 	if(msgs[i]) {
+		// 		msgRetryMap[ids[i]] = (msgRetryMap[ids[i]] || 0) + 1
+		// 		await relayMessage(key.remoteJid, msgs[i], {
+		// 			messageId: ids[i],
+		// 			participant
+		// 		})
+		// 	} else {
+		// 		logger.debug({ jid: key.remoteJid, id: ids[i] }, 'recv retry request, but message not available')
+		// 	}
+		// }
 	}
 
 	const handleReceipt = async(node: BinaryNode) => {
@@ -369,25 +369,25 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 
 				}
 
-				if(attrs.type === 'retry') {
-					if(willSendMessageAgain(ids[0])) {
-						// correctly set who is asking for the retry
-						key.participant = key.participant || attrs.from
-						if(key.fromMe) {
-							try {
-								logger.debug({ attrs, key }, 'recv retry request')
-								await sendMessagesAgain(key, ids)
-							} catch(error) {
-								logger.error({ key, ids, trace: error.stack }, 'error in sending message again')
-								shouldAck = false
-							}
-						} else {
-							logger.info({ attrs, key }, 'recv retry for not fromMe message')
-						}
-					} else {
-						logger.info({ attrs, key }, 'will not send message again, as sent too many times')
-					}
-				}
+				// if(attrs.type === 'retry') {
+				// 	if(willSendMessageAgain(ids[0])) {
+				// 		// correctly set who is asking for the retry
+				// 		key.participant = key.participant || attrs.from
+				// 		if(key.fromMe) {
+				// 			try {
+				// 				logger.debug({ attrs, key }, 'recv retry request')
+				// 				await sendMessagesAgain(key, ids)
+				// 			} catch(error) {
+				// 				logger.error({ key, ids, trace: error.stack }, 'error in sending message again')
+				// 				shouldAck = false
+				// 			}
+				// 		} else {
+				// 			logger.info({ attrs, key }, 'recv retry for not fromMe message')
+				// 		}
+				// 	} else {
+				// 		logger.info({ attrs, key }, 'will not send message again, as sent too many times')
+				// 	}
+				// }
 
 				if(shouldAck) {
 					await sendMessageAck(node, { class: 'receipt', type: attrs.type })
