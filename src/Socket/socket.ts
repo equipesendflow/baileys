@@ -288,7 +288,14 @@ export const makeSocket = ({
 		})
 	}
 
+	let alreadyEnded = false;
+
 	const end = (error: Error | undefined) => {
+		if (alreadyEnded) {
+			return;
+		}
+
+		alreadyEnded = true;
 		logger.info(
 			{ error, trace: error?.stack },
 			error ? 'connection errored' : 'connection closed'
@@ -296,6 +303,8 @@ export const makeSocket = ({
 
 		clearInterval(keepAliveReq)
 		clearTimeout(qrTimer)
+
+		ws.emit('close')
 
 		ws.removeAllListeners('close')
 		ws.removeAllListeners('error')
