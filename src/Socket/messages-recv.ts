@@ -4,7 +4,7 @@ import { KEY_BUNDLE_TYPE, MIN_PREKEY_COUNT } from '../Defaults'
 import { BaileysEventMap, MessageReceiptType, MessageUserReceipt, SocketConfig, WACallEvent, WAMessageStubType } from '../Types'
 import { debouncedTimeout, decodeMessageStanza, delay, encodeBigEndian, generateSignalPubKey, getCallStatusFromNode, getNextPreKeys, getStatusFromReceiptType, normalizeMessageContent, unixTimestampSeconds, xmppPreKey, xmppSignedPreKey } from '../Utils'
 import { makeKeyedMutex, makeMutex } from '../Utils/make-mutex'
-import processMessage from '../Utils/process-message'
+import processMessage, { cleanMessage } from '../Utils/process-message'
 import { areJidsSameUser, BinaryNode, BinaryNodeAttributes, getAllBinaryNodeChildren, getBinaryNodeChild, getBinaryNodeChildren, isJidGroup, isJidUser, jidDecode, jidEncode, jidNormalizedUser, S_WHATSAPP_NET } from '../WABinary'
 import { makeChatsSocket } from './chats'
 import { extractGroupMetadata } from './groups'
@@ -13,7 +13,8 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 	const {
 		logger,
 		treatCiphertextMessagesAsReal,
-		retryRequestDelayMs
+		retryRequestDelayMs,
+		downloadHistory
 	} = config
 	const sock = makeChatsSocket(config)
 	const {
@@ -149,7 +150,15 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 		// process message and emit events
 		const newEvents = await processMessage(
 			msg,
-			{ historyCache, meId, accountSettings: authState.creds.accountSettings, keyStore: authState.keys, logger, treatCiphertextMessagesAsReal }
+			{
+				downloadHistory,
+				historyCache,
+				meId,
+				accountSettings: authState.creds.accountSettings,
+				keyStore: authState.keys,
+				logger,
+				treatCiphertextMessagesAsReal
+			}
 		)
 
 		// send ack for history message
@@ -496,7 +505,7 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 					await sendReceipt(msg.key.remoteJid!, participant, [msg.key.id!], type)
 				}
 
-				msg.key.remoteJid = jidNormalizedUser(msg.key.remoteJid!)
+				cleanMessage(msg, authState.creds.me!.id)
 				ev.emit('messages.upsert', { messages: [msg], type: stanza.attrs.offline ? 'append' : 'notify' })
 			}
 		)
