@@ -1,4 +1,4 @@
-import { mkdir, readFile, stat, writeFile } from 'fs/promises'
+import { mkdir, readFile, stat, unlink, writeFile } from 'fs/promises'
 import { join } from 'path'
 import { proto } from '../../WAProto'
 import { AuthenticationCreds, AuthenticationState, SignalDataTypeMap } from '../Types'
@@ -27,6 +27,14 @@ export const useMultiFileAuthState = async(folder: string): Promise<{ state: Aut
 		}
 	}
 
+	const removeData = async(file: string) => {
+		try {
+			await unlink(file)
+		} catch{
+
+		}
+	}
+
 	const folderInfo = await stat(folder).catch(() => { })
 	if(folderInfo) {
 		if(!folderInfo.isDirectory()) {
@@ -49,7 +57,7 @@ export const useMultiFileAuthState = async(folder: string): Promise<{ state: Aut
 							async id => {
 								let value = await readData(`${type}-${id}.json`)
 								if(type === 'app-state-sync-key') {
-									value = proto.AppStateSyncKeyData.fromObject(data)
+									value = proto.AppStateSyncKeyData.fromObject(value)
 								}
 
 								data[id] = value
@@ -63,7 +71,9 @@ export const useMultiFileAuthState = async(folder: string): Promise<{ state: Aut
 					const tasks: Promise<void>[] = []
 					for(const category in data) {
 						for(const id in data[category]) {
-							tasks.push(writeData(data[category][id], `${category}-${id}.json`))
+							const value = data[category][id]
+							const file = `${category}-${id}.json`
+							tasks.push(value ? writeData(value, file) : removeData(file))
 						}
 					}
 
