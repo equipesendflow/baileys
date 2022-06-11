@@ -28,16 +28,21 @@ export const getUrlInfo = async(
 	try {
 		const { getLinkPreview } = await import('link-preview-js')
 		let previewLink = text
-		if (!text.startsWith('https://') && !text.startsWith('http://')) {
+		if(!text.startsWith('https://') && !text.startsWith('http://')) {
 			previewLink = 'https://' + previewLink
 		}
+
 		const info = await getLinkPreview(previewLink, { timeout: opts.timeoutMs })
 		if(info && 'title' in info) {
 			const [image] = info.images
 
-			const jpegThumbnail = image
-				? await getCompressedJpegThumbnail(image, opts)
-				: undefined
+			let jpegThumbnail: Buffer | undefined = undefined
+			try {
+				jpegThumbnail = image
+					? await getCompressedJpegThumbnail(image, opts)
+					: undefined
+			} catch(error) {
+			}
 
 			return {
 				'canonical-url': info.url,
