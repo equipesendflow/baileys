@@ -2448,7 +2448,7 @@ functions-have-names@^1.2.2:
   resolved "https://registry.yarnpkg.com/functions-have-names/-/functions-have-names-1.2.3.tgz#0404fe4ee2ba2f607f0e0ec3c80bae994133b834"
   integrity sha512-xckBUXyTIqT97tq2x2AMb+g163b5JFysYk0x4qxNFwbfQkmNZoiRHb6sPzI9/QV33WeuvVYBUIiD4NzNIyqaRQ==
 
-futoin-hkdf@^1.5.0:
+futoin-hkdf@^1.5.1:
   version "1.5.1"
   resolved "https://registry.yarnpkg.com/futoin-hkdf/-/futoin-hkdf-1.5.1.tgz#141f00427bc9950b38a42aa786b99c318b9b688d"
   integrity sha512-g5d0Qp7ks55hYmYmfqn4Nz18XH49lcCR+vvIvHT92xXnsJaGZmY1EtWQWilJ6BQp57heCIXM/rRo+AFep8hGgg==
@@ -3490,7 +3490,7 @@ lines-and-columns@^1.1.6:
   resolved "https://registry.yarnpkg.com/lines-and-columns/-/lines-and-columns-1.2.4.tgz#eca284f75d2965079309dc0ad9255abb2ebc1632"
   integrity sha512-7ylylesZQ/PV29jhEDl3Ufjo6ZX7gCqJr5F7PKrqc93v7fzSymt1BpwEU8nAUXs8qzzvqhbjhK5QZg6Mt/HkBg==
 
-link-preview-js@^2.1.13:
+link-preview-js@^2.1.15:
   version "2.1.15"
   resolved "https://registry.yarnpkg.com/link-preview-js/-/link-preview-js-2.1.15.tgz#49c6320af8252c38d7f3063580f4cd30349125a6"
   integrity sha512-v+JIgt0LgK/81eYrU2zy1t/wOmGLfQ1bmv74DFP2huWDcSWoV8CloPVpvbc2BoxGAKhA8T6EFCmLKC/Er8CmXg==
