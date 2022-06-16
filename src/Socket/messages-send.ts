@@ -290,6 +290,7 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 		)
 	)
 
+	let lastRelayAt: number | null = null;
 
 	const relayMessage = async (
 		jid: string,
@@ -457,6 +458,10 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 					stanza.attrs.to = destinationJid
 				}
 
+				if (lastRelayAt && 1000 < Date.now() - lastRelayAt) {
+					await new Promise(resolve => setTimeout(resolve, 1000 - Date.now() - lastRelayAt));
+				}
+
 				if (participants.length) {
 					let promises = []
 					for (let i = 0; i < participants.length; i += 160) {
@@ -496,6 +501,8 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 
 					await sendNode(stanza)
 				}
+
+				lastRelayAt = Date.now();
 			}
 		)
 
