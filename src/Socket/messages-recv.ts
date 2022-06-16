@@ -219,7 +219,7 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 		}
 	}
 
-	const processNotification = async(node: BinaryNode): Promise<Partial<proto.IWebMessageInfo>> => {
+	const processNotification = (node: BinaryNode) => {
 		const result: Partial<proto.IWebMessageInfo> = { }
 		const [child] = getAllBinaryNodeChildren(node)
 		const nodeType = node.attrs.type
@@ -289,19 +289,13 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 		} else if(nodeType === 'mediaretry') {
 			const event = decodeMediaRetryNode(node)
 			ev.emit('messages.media-update', [event])
-		} else {
-			switch (child.tag) {
-			case 'devices':
-				const devices = getBinaryNodeChildren(child, 'device')
-				if(areJidsSameUser(child.attrs.jid, authState.creds!.me!.id)) {
-					const deviceJids = devices.map(d => d.attrs.jid)
-					logger.info({ deviceJids }, 'got my own devices')
-				}
-
-				break
-			case 'encrypt':
-				handleEncryptNotification(node)
-				break
+		} else if(nodeType === 'encrypt') {
+			handleEncryptNotification(node)
+		} else if(nodeType === 'devices') {
+			const devices = getBinaryNodeChildren(child, 'device')
+			if(areJidsSameUser(child.attrs.jid, authState.creds!.me!.id)) {
+				const deviceJids = devices.map(d => d.attrs.jid)
+				logger.info({ deviceJids }, 'got my own devices')
 			}
 		}
 
@@ -310,9 +304,15 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 		}
 	}
 
-	const willSendMessageAgain = (id: string) => {
-		const retryCount = msgRetryMap[id] || 0
+	const willSendMessageAgain = (id: string, participant: string) => {
+		const key = `${id}:${participant}`
+		const retryCount = msgRetryMap[key] || 0
 		return retryCount < 5
+	}
+
+	const updateSendMessageAgainCount = (id: string, participant: string) => {
+		const key = `${id}:${participant}`
+		msgRetryMap[key] = (msgRetryMap[key] || 0) + 1
 	}
 
 	const sendMessagesAgain = async(key: proto.IMessageKey, ids: string[]) => {
@@ -333,7 +333,7 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 
 		// for(let i = 0; i < msgs.length;i++) {
 		// 	if(msgs[i]) {
-		// 		msgRetryMap[ids[i]] = (msgRetryMap[ids[i]] || 0) + 1
+		// 		updateSendMessageAgainCount(ids[i], participant)
 		// 		await relayMessage(key.remoteJid, msgs[i], {
 		// 			messageId: ids[i],
 		// 			participant
@@ -345,8 +345,6 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 	}
 
 	const handleReceipt = async(node: BinaryNode) => {
-		let shouldAck = true
-
 		const { attrs, content } = node
 		const isNodeFromMe = areJidsSameUser(attrs.participant || attrs.from, authState.creds.me?.id)
 		const remoteJid = !isNodeFromMe || isJidGroup(attrs.from) ? attrs.from : attrs.recipient
@@ -399,20 +397,20 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 							}))
 						)
 					}
-
 				}
 
+				await sendMessageAck(node)
+
 				// if(attrs.type === 'retry') {
-				// 	if(willSendMessageAgain(ids[0])) {
-				// 		// correctly set who is asking for the retry
-				// 		key.participant = key.participant || attrs.from
+				// 	// correctly set who is asking for the retry
+				// 	key.participant = key.participant || attrs.from
+				// 	if(willSendMessageAgain(ids[0], key.participant)) {
 				// 		if(key.fromMe) {
 				// 			try {
 				// 				logger.debug({ attrs, key }, 'recv retry request')
 				// 				await sendMessagesAgain(key, ids)
 				// 			} catch(error) {
 				// 				logger.error({ key, ids, trace: error.stack }, 'error in sending message again')
-				// 				shouldAck = false
 				// 			}
 				// 		} else {
 				// 			logger.info({ attrs, key }, 'recv retry for not fromMe message')
@@ -421,10 +419,6 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 				// 		logger.info({ attrs, key }, 'will not send message again, as sent too many times')
 				// 	}
 				// }
-
-				if(shouldAck) {
-					await sendMessageAck(node)
-				}
 			}
 		)
 	}
@@ -432,27 +426,22 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 	const handleNotification = async(node: BinaryNode) => {
 		const remoteJid = node.attrs.from
 		await sendMessageAck(node)
-		await processingMutex.mutex(
-			remoteJid,
-			async() => {
-				const msg = await processNotification(node)
-				if(msg) {
-					const fromMe = areJidsSameUser(node.attrs.participant || node.attrs.from, authState.creds.me!.id)
-					msg.key = {
-						remoteJid: node.attrs.from,
-						fromMe,
-						participant: node.attrs.participant,
-						id: node.attrs.id,
-						...(msg.key || {})
-					}
-					msg.participant = node.attrs.participant
-					msg.messageTimestamp = +node.attrs.t
-
-					const fullMsg = proto.WebMessageInfo.fromObject(msg)
-					ev.emit('messages.upsert', { messages: [fullMsg], type: 'append' })
-				}
+		const msg = processNotification(node)
+		if(msg) {
+			const fromMe = areJidsSameUser(node.attrs.participant || remoteJid, authState.creds.me!.id)
+			msg.key = {
+				remoteJid,
+				fromMe,
+				participant: node.attrs.participant,
+				id: node.attrs.id,
+				...(msg.key || {})
 			}
-		)
+			msg.participant = node.attrs.participant
+			msg.messageTimestamp = +node.attrs.t
+
+			const fullMsg = proto.WebMessageInfo.fromObject(msg)
+			ev.emit('messages.upsert', { messages: [fullMsg], type: 'append' })
+		}
 	}
 
 	const handleUpsertedMessages = async({ messages, type }: BaileysEventMap<any>['messages.upsert']) => {
@@ -497,7 +486,7 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 				// message failed to decrypt
 				if(msg.messageStubType === proto.WebMessageInfo.WebMessageInfoStubType.CIPHERTEXT) {
 					logger.error(
-						{ msgId: msg.key.id, params: msg.messageStubParameters },
+						{ key: msg.key, params: msg.messageStubParameters },
 						'failure in decrypting message'
 					)
 					retryMutex.mutex(
