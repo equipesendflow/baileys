@@ -6,7 +6,7 @@ import { WA_DEFAULT_EPHEMERAL } from '../Defaults'
 import { AnyMessageContent, MediaConnInfo, MessageReceiptType, MessageRelayOptions, MiscMessageGenerationOptions, SocketConfig, WAMessageKey } from '../Types'
 import { aggregateMessageKeysNotFromMe, assertMediaContent, bindWaitForEvent, decryptMediaRetryData, encodeWAMessage, encryptMediaRetryRequest, encryptSenderKeyMsgSignalProto, encryptSignalProto, extractDeviceJids, generateMessageID, generateWAMessage, getUrlFromDirectPath, getWAUploadToServer, jidToSignalProtocolAddress, parseAndInjectE2ESessions, unixTimestampSeconds } from '../Utils'
 import { getUrlInfo } from '../Utils/link-preview'
-import { BinaryNode, BinaryNodeAttributes, getBinaryNodeChild, getBinaryNodeChildren, isJidGroup, isJidUser, jidDecode, jidEncode, jidNormalizedUser, JidWithDevice, reduceBinaryNodeToDictionary, S_WHATSAPP_NET } from '../WABinary'
+import { areJidsSameUser, BinaryNode, BinaryNodeAttributes, getBinaryNodeChild, getBinaryNodeChildren, isJidGroup, isJidUser, jidDecode, jidEncode, jidNormalizedUser, JidWithDevice, reduceBinaryNodeToDictionary, S_WHATSAPP_NET } from '../WABinary'
 import { makeGroupsSocket } from './groups'
 
 export const makeMessagesSocket = (config: SocketConfig) => {
@@ -211,6 +211,7 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 	}
 
 	const assertSessions = async(jids: string[], force: boolean) => {
+		let didFetchNewSession = false
 		let jidsRequiringFetch: string[] = []
 		if(force) {
 			jidsRequiringFetch = jids
@@ -241,22 +242,20 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 						content: jidsRequiringFetch.map(
 							jid => ({
 								tag: 'user',
-								attrs: { jid, reason: 'identity' },
+								attrs: { jid },
 							})
 						)
 					}
 				]
 			})
 			await parseAndInjectE2ESessions(result, authState)
-			return true
+
+			didFetchNewSession = true
 		}
 
-		return false
-	}
-
-	const createParticipantNodes = async(jids: string[], bytes: Buffer) => {
-		await assertSessions(jids, false)
-
+		// pre-fetch all sessions to improve efficiency
+		// makes a big difference when sending to large groups
+		// or when there are 100s of devices to push to
 		if(authState.keys.isInTransaction()) {
 			await authState.keys.prefetch(
 				'session',
@@ -264,7 +263,11 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 			)
 		}
 
-		const nodes = await Promise.all(
+		return didFetchNewSession
+	}
+
+	const createParticipantNodes = (jids: string[], bytes: Buffer) => (
+		Promise.all(
 			jids.map(
 				async jid => {
 					const { type, ciphertext } = await encryptSignalProto(jid, bytes, authState)
@@ -281,8 +284,7 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 				}
 			)
 		)
-		return nodes
-	}
+	)
 
 	const relayMessage = async(
 		jid: string,
@@ -327,8 +329,12 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 							return groupData
 						})(),
 						(async() => {
-							const result = await authState.keys.get('sender-key-memory', [jid])
-							return result[jid] || { }
+							if(!participant) {
+								const result = await authState.keys.get('sender-key-memory', [jid])
+								return result[jid] || { }
+							}
+
+							return { }
 						})()
 					])
 
@@ -342,7 +348,7 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 					// ensure a connection is established with every device
 					for(const { user, device } of devices) {
 						const jid = jidEncode(user, 's.whatsapp.net', device)
-						if(!senderKeyMap[jid]) {
+						if(!senderKeyMap[jid] || !!participant) {
 							senderKeyJids.push(jid)
 							// store that this person has had the sender keys sent to them
 							senderKeyMap[jid] = true
@@ -361,12 +367,11 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 							}
 						})
 
-						for (let i = 0; i < senderKeyJids.length; i += 99) {
-							const chunk = senderKeyJids.slice(i, i + 99);
-							participants.push(
-								...(await createParticipantNodes(chunk, encSenderKeyMsg))
-							)
-						}
+						await assertSessions(senderKeyJids, false)
+
+						participants.push(
+							...(await createParticipantNodes(senderKeyJids, encSenderKeyMsg))
+						)
 					}
 
 					binaryNodeContent.push({
@@ -394,6 +399,7 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 						devices.push(...additionalDevices)
 					}
 
+					const allJids: string[] = []
 					const meJids: string[] = []
 					const otherJids: string[] = []
 					for(const { user, device } of devices) {
@@ -404,7 +410,11 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 						} else {
 							otherJids.push(jid)
 						}
+
+						allJids.push(jid)
 					}
+
+					await assertSessions(allJids, false)
 
 					const [meNodes, otherNodes] = await Promise.all([
 						createParticipantNodes(meJids, encodedMeMsg),
@@ -421,10 +431,25 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 					attrs: {
 						id: msgId,
 						type: 'text',
-						to: destinationJid,
 						...(additionalAttributes || {})
 					},
 					content: null
+				}
+				// if the participant to send to is explicitly specified (generally retry recp)
+				// ensure the message is only sent to that person
+				// if a retry receipt is sent to everyone -- it'll fail decryption for everyone else who received the msg
+				if(participant) {
+					if(isJidGroup(destinationJid)) {
+						stanza.attrs.to = destinationJid
+						stanza.attrs.participant = participant
+					} else if(areJidsSameUser(participant, meId)) {
+						stanza.attrs.to = participant
+						stanza.attrs.recipient = destinationJid
+					} else {
+						stanza.attrs.to = participant
+					}
+				} else {
+					stanza.attrs.to = destinationJid
 				}
 
 				if (participants.length) {
