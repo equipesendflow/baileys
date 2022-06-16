@@ -286,6 +286,210 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 		)
 	)
 
+	const prefetchRelayMessage = async(
+		jid: string,
+		message: proto.IMessage,
+		{ messageId: msgId, participant, additionalAttributes, cachedGroupMetadata }: MessageRelayOptions
+	) => {
+		const meId = authState.creds.me!.id
+
+		const { user, server } = jidDecode(jid)
+		const isGroup = server === 'g.us'
+		msgId = msgId || generateMessageID()
+
+		const encodedMsg = encodeWAMessage(message)
+		const participants: BinaryNode[] = []
+
+		const destinationJid = jidEncode(user, isGroup ? 'g.us' : 's.whatsapp.net')
+
+
+		const devices: JidWithDevice[] = []
+		if(participant) {
+			const { user, device } = jidDecode(participant)
+			devices.push({ user, device })
+		}
+
+		await authState.keys.transaction(
+			async() => {
+				if(isGroup) {
+					const {  senderKeyDistributionMessageKey } = await encryptSenderKeyMsgSignalProto(destinationJid, encodedMsg, meId, authState)
+
+					const [groupData, senderKeyMap] = await Promise.all([
+						(async() => {
+							let groupData = cachedGroupMetadata ? await cachedGroupMetadata(jid) : undefined
+							if(groupData) {
+								logger.trace({ jid, participants: groupData.participants.length }, 'using cached group metadata')
+							}
+
+							if(!groupData) {
+								groupData = await groupMetadata(jid)
+							}
+
+							return groupData
+						})(),
+						(async() => {
+							if(!participant) {
+								const result = await authState.keys.get('sender-key-memory', [jid])
+								return result[jid] || { }
+							}
+
+							return { }
+						})()
+					])
+
+					if(!participant) {
+						const participantsList = groupData.participants.map(p => p.id)
+						const additionalDevices = await getUSyncDevices(participantsList, false)
+						devices.push(...additionalDevices)
+					}
+
+					const senderKeyJids: string[] = []
+					// ensure a connection is established with every device
+					for(const { user, device } of devices) {
+						const jid = jidEncode(user, 's.whatsapp.net', device)
+						if(!senderKeyMap[jid] || !!participant) {
+							senderKeyJids.push(jid)
+							// store that this person has had the sender keys sent to them
+							senderKeyMap[jid] = true
+						}
+					}
+
+					// if there are some participants with whom the session has not been established
+					// if there are, we re-send the senderkey
+					if(senderKeyJids.length) {
+						logger.debug({ senderKeyJids }, 'sending new sender key')
+
+						const encSenderKeyMsg = encodeWAMessage({
+							senderKeyDistributionMessage: {
+								axolotlSenderKeyDistributionMessage: senderKeyDistributionMessageKey,
+								groupId: destinationJid
+							}
+						})
+
+						await assertSessions(senderKeyJids, false)
+
+						participants.push(
+							...(await createParticipantNodes(senderKeyJids, encSenderKeyMsg))
+						)
+					}
+
+					await authState.keys.set({ 'sender-key-memory': { [jid]: senderKeyMap } })
+				} else {
+					const { user: meUser } = jidDecode(meId)
+
+					const encodedMeMsg = encodeWAMessage({
+						deviceSentMessage: {
+							destinationJid,
+							message
+						}
+					})
+
+					if(!participant) {
+						devices.push({ user })
+						devices.push({ user: meUser })
+
+						const additionalDevices = await getUSyncDevices([ meId, jid ], true)
+						devices.push(...additionalDevices)
+					}
+
+					const allJids: string[] = []
+					const meJids: string[] = []
+					const otherJids: string[] = []
+					for(const { user, device } of devices) {
+						const jid = jidEncode(user, 's.whatsapp.net', device)
+						const isMe = user === meUser
+						if(isMe) {
+							meJids.push(jid)
+						} else {
+							otherJids.push(jid)
+						}
+
+						allJids.push(jid)
+					}
+
+					await assertSessions(allJids, false)
+
+					const [meNodes, otherNodes] = await Promise.all([
+						createParticipantNodes(meJids, encodedMeMsg),
+						createParticipantNodes(otherJids, encodedMsg)
+					])
+					participants.push(...meNodes)
+					participants.push(...otherNodes)
+				}
+
+			
+
+				const stanza: BinaryNode = {
+					tag: 'message',
+					attrs: {
+						id: msgId,
+						type: 'text',
+						...(additionalAttributes || {})
+					},
+					content: null
+				}
+				// if the participant to send to is explicitly specified (generally retry recp)
+				// ensure the message is only sent to that person
+				// if a retry receipt is sent to everyone -- it'll fail decryption for everyone else who received the msg
+				if(participant) {
+					if(isJidGroup(destinationJid)) {
+						stanza.attrs.to = destinationJid
+						stanza.attrs.participant = participant
+					} else if(areJidsSameUser(participant, meId)) {
+						stanza.attrs.to = participant
+						stanza.attrs.recipient = destinationJid
+					} else {
+						stanza.attrs.to = participant
+					}
+				} else {
+					stanza.attrs.to = destinationJid
+				}
+
+				if (participants.length) {
+					let promises = []
+					for (let i = 0; i < participants.length; i += 160) {
+						promises.push(new Promise(resolve => {
+							const participantsChunk = participants.slice(i, i + 160);
+
+							stanza.content = []
+							stanza.content.push({
+								tag: 'participants',
+								attrs: {},
+								content: participantsChunk
+							})
+
+							const shouldHaveIdentity = !!participantsChunk.find(
+								participant => (participant.content! as BinaryNode[]).find(n => n.attrs.type === 'pkmsg')
+							)
+
+							if (shouldHaveIdentity) {
+								(stanza.content as BinaryNode[]).push({
+									tag: 'device-identity',
+									attrs: {},
+									content: proto.ADVSignedDeviceIdentity.encode(authState.creds.account).finish()
+								})
+
+								logger.debug({ jid }, 'adding device identity')
+							}
+							logger.debug({ msgId }, `sending message to ${participantsChunk.length} devices`)
+
+							sendNode(stanza).then(resolve)
+						}))
+					}
+					await Promise.all(promises)
+				} else {
+
+					logger.debug({ msgId }, `sending message to ${participants.length} devices`)
+
+					await sendNode(stanza)
+				}
+			}
+		)
+
+		return msgId
+	}
+
+
 	const relayMessage = async(
 		jid: string,
 		message: proto.IMessage,
@@ -504,6 +708,7 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 	return {
 		...sock,
 		assertSessions,
+		prefetchRelayMessage,
 		relayMessage,
 		sendReceipt,
 		sendReadReceipt,
