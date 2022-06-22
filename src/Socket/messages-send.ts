@@ -140,15 +140,20 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 		}
  	}
 
-	const getUSyncDevices = async(jids: string[], ignoreZeroDevices: boolean) => {
+	/** Fetch all the devices we've to send a message to */
+	const getUSyncDevices = async(jids: string[], useCache: boolean, ignoreZeroDevices: boolean) => {
 		const deviceResults: JidWithDevice[] = []
+
+		if(!useCache) {
+			logger.debug('not using cache for devices')
+		}
 
 		const users: BinaryNode[] = []
 		jids = Array.from(new Set(jids))
 		for(let jid of jids) {
 			const user = jidDecode(jid).user
 			jid = jidNormalizedUser(jid)
-			if(userDevicesCache.has(user)) {
+			if(userDevicesCache.has(user) && useCache) {
 				const devices: JidWithDevice[] = userDevicesCache.get(user)
 				deviceResults.push(...devices)
 
@@ -288,7 +293,7 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 	const relayMessage = async(
 		jid: string,
 		message: proto.IMessage,
-		{ messageId: msgId, participant, additionalAttributes, cachedGroupMetadata }: MessageRelayOptions
+		{ messageId: msgId, participant, additionalAttributes, useUserDevicesCache, cachedGroupMetadata }: MessageRelayOptions
 	) => {
 		const meId = authState.creds.me!.id
 
@@ -297,6 +302,7 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 		const { user, server } = jidDecode(jid)
 		const isGroup = server === 'g.us'
 		msgId = msgId || generateMessageID()
+		useUserDevicesCache = useUserDevicesCache !== false
 
 		const encodedMsg = encodeWAMessage(message)
 		const participants: BinaryNode[] = []
@@ -348,7 +354,7 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 
 					if(!participant) {
 						const participantsList = groupData.participants.map(p => p.id)
-						const additionalDevices = await getUSyncDevices(participantsList, false)
+						const additionalDevices = await getUSyncDevices(participantsList, useUserDevicesCache, false)
 						devices.push(...additionalDevices)
 					}
 
@@ -404,7 +410,7 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 						devices.push({ user })
 						devices.push({ user: meUser })
 
-						const additionalDevices = await getUSyncDevices([ meId, jid ], true)
+						const additionalDevices = await getUSyncDevices([ meId, jid ], useUserDevicesCache, true)
 						devices.push(...additionalDevices)
 					}
 
@@ -491,13 +497,43 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 		return msgId
 	}
 
+	const getPrivacyTokens = async(jids: string[]) => {
+		const t = unixTimestampSeconds().toString()
+		const result = await query({
+			tag: 'iq',
+			attrs: {
+				to: S_WHATSAPP_NET,
+				type: 'set',
+				xmlns: 'privacy'
+			},
+			content: [
+				{
+					tag: 'tokens',
+					attrs: { },
+					content: jids.map(
+						jid => ({
+							tag: 'token',
+							attrs: {
+								jid: jidNormalizedUser(jid),
+								t,
+								type: 'trusted_contact'
+							}
+						})
+					)
+				}
+			]
+		})
+
+		return result
+	}
+
 	const waUploadToServer = getWAUploadToServer(config, refreshMediaConn)
 
 	const waitForMsgMediaUpdate = bindWaitForEvent(ev, 'messages.media-update')
 
 	return {
 		...sock,
-		getUSyncDevices,
+		getPrivacyTokens,
 		assertSessions,
 		relayMessage,
 		sendReceipt,
@@ -525,7 +561,11 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 								try {
 									const media = decryptMediaRetryData(result.media!, mediaKey, result.key.id)
 									if(media.result !== proto.MediaRetryNotification.MediaRetryNotificationResultType.SUCCESS) {
-										throw new Boom(`Media re-upload failed by device (${media.result})`, { data: media })
+										const resultStr = proto.MediaRetryNotification.MediaRetryNotificationResultType[media.result]
+										throw new Boom(
+											`Media re-upload failed by device (${resultStr})`,
+											{ data: media, statusCode: MEDIA_RETRY_STATUS_MAP[media.result] }
+										)
 									}
 
 									content.directPath = media.directPath
@@ -605,3 +645,10 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 		}
 	}
 }
+
+const MEDIA_RETRY_STATUS_MAP = {
+	[proto.MediaRetryNotification.MediaRetryNotificationResultType.SUCCESS]: 200,
+	[proto.MediaRetryNotification.MediaRetryNotificationResultType.DECRYPTION_ERROR]: 412,
+	[proto.MediaRetryNotification.MediaRetryNotificationResultType.NOT_FOUND]: 404,
+	[proto.MediaRetryNotification.MediaRetryNotificationResultType.GENERAL_ERROR]: 418,
+} as const
