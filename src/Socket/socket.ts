@@ -166,7 +166,7 @@ export const makeSocket = ({
 		}
 		helloMsg = proto.HandshakeMessage.fromObject(helloMsg)
 
-		logger.info({ browser, helloMsg, registrationId: creds.registrationId }, 'connected to WA Web')
+		logger.info({  registrationId: creds.registrationId }, 'connected to WA Web')
 
 		const init = proto.HandshakeMessage.encode(helloMsg).finish()
 
@@ -288,7 +288,7 @@ export const makeSocket = ({
 
 		alreadyEnded = true;
 		logger.info(
-			{ error, trace: error?.stack },
+			{ error },
 			error ? 'connection errored' : 'connection closed'
 		)
 
