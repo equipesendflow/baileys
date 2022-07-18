@@ -48,6 +48,7 @@ export const makeSocket = ({
 	let epoch = 1
 	let keepAliveReq: NodeJS.Timeout
 	let qrTimer: NodeJS.Timeout
+	let closed = false
 
 	const uqTagId = generateMdTagPrefix()
 	const generateMessageTag = () => `${uqTagId}${epoch++}`
@@ -166,7 +167,7 @@ export const makeSocket = ({
 		}
 		helloMsg = proto.HandshakeMessage.fromObject(helloMsg)
 
-		logger.info({  registrationId: creds.registrationId }, 'connected to WA Web')
+		logger.info('connected to WA Web')
 
 		const init = proto.HandshakeMessage.encode(helloMsg).finish()
 
@@ -279,16 +280,16 @@ export const makeSocket = ({
 		})
 	}
 
-	let alreadyEnded = false;
 
 	const end = (error: Error | undefined) => {
-		if (alreadyEnded) {
-			return;
+		if(closed) {
+			return
 		}
 
-		alreadyEnded = true;
+		closed = true
+		
 		logger.info(
-			{ error },
+			{ trace: error?.stack },
 			error ? 'connection errored' : 'connection closed'
 		)
 
