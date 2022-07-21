@@ -223,20 +223,20 @@ export const makeSocket = ({
 	const uploadPreKeys = async(count = INITIAL_PREKEY_COUNT) => {
 		await keys.transaction(
 			async() => {
-				logger.info({ count }, 'uploading pre-keys')
+				logger.debug({ count }, 'uploading pre-keys')
 				const { update, node } = await getNextPreKeysNode({ creds, keys }, count)
 
 				await query(node)
 				ev.emit('creds.update', update)
 
-				logger.info({ count }, 'uploaded pre-keys')
+				logger.debug({ count }, 'uploaded pre-keys')
 			}
 		)
 	}
 
 	const uploadPreKeysToServerIfRequired = async() => {
 		const preKeyCount = await getAvailablePreKeysOnServer()
-		logger.info(`${preKeyCount} pre-keys found on server`)
+		logger.debug(`${preKeyCount} pre-keys found on server`)
 		if(preKeyCount <= MIN_PREKEY_COUNT) {
 			await uploadPreKeys()
 		}
@@ -480,7 +480,7 @@ export const makeSocket = ({
 		try {
 			const { reply, creds: updatedCreds } = configureSuccessfulPairing(stanza, creds)
 
-			logger.info(
+			logger.debug(
 				{ me: updatedCreds.me, platform: updatedCreds.platform },
 				'pairing configured successfully, expect to restart the connection...'
 			)
@@ -532,7 +532,7 @@ export const makeSocket = ({
 		const name = update.me?.name
 		// if name has just been received
 		if(creds.me?.name !== name) {
-			logger.info({ name }, 'updated pushName')
+			logger.debug({ name }, 'updated pushName')
 			sendNode({
 				tag: 'presence',
 				attrs: { name: name! }

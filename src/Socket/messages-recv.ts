@@ -140,7 +140,7 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 
 				await sendNode(receipt)
 
-				logger.info({ msgAttrs: node.attrs, retryCount }, 'sent retry receipt')
+				logger.debug({ msgAttrs: node.attrs, retryCount }, 'sent retry receipt')
 			}
 		)
 	}
@@ -159,11 +159,11 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 		} else {
 			const identityNode = getBinaryNodeChild(node, 'identity')
 			if(identityNode) {
-				logger.info({ jid: from }, 'identity changed')
+				logger.debug({ jid: from }, 'identity changed')
 				// not handling right now
 				// signal will override new identity anyway
 			} else {
-				logger.info({ node }, 'unknown encrypt notification')
+				logger.debug({ node }, 'unknown encrypt notification')
 			}
 		}
 	}
@@ -553,7 +553,7 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 		const child = getBinaryNodeChild(node, 'offline')
 		const offlineNotifs = +(child?.attrs.count || 0)
 
-		logger.info(`handled ${offlineNotifs} offline messages/notifications`)
+		logger.debug(`handled ${offlineNotifs} offline messages/notifications`)
 		await ev.flush()
 		ev.emit('connection.update', { receivedPendingNotifications: true })
 	})

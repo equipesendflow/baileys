@@ -653,7 +653,7 @@ export const downloadMediaMessage = async(
 			if(axios.isAxiosError(error)) {
 				// check if the message requires a reupload
 				if(REUPLOAD_REQUIRED_STATUS.includes(error.response?.status!)) {
-					ctx.logger.info({ key: message.key }, 'sending reupload media request...')
+					ctx.logger.debug({ key: message.key }, 'sending reupload media request...')
 					// request reupload
 					message = await ctx.reuploadRequest(message)
 					const result = await downloadMsg()
