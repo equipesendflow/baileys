@@ -611,10 +611,15 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 					{
 						logger,
 						userJid,
-						getUrlInfo: text => getUrlInfo(
-							text,
-							{ thumbnailWidth: linkPreviewImageThumbnailWidth, timeoutMs: 3_000 }
-						),
+						getUrlInfo: async text => {
+							if (!options.detectLinks) {
+								return undefined;
+							}
+							return getUrlInfo(
+								text,
+								{ thumbnailWidth: linkPreviewImageThumbnailWidth, timeoutMs: 3_000 }
+							)
+						},
 						upload: waUploadToServer,
 						mediaCache: config.mediaCache,
 						...options,

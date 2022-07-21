@@ -132,7 +132,8 @@ export type AnyRegularMessageContent = (
 
 export type AnyMessageContent = AnyRegularMessageContent | {
 	forward: WAMessage
-	force?: boolean
+	force?: boolean,
+    detectLinks: boolean;
 } | {
 	delete: WAMessageKey
 } | {
@@ -166,6 +167,7 @@ export type MiscMessageGenerationOptions = MinimalRelayOptions & {
     ephemeralExpiration?: number | string
     /** timeout for media upload to WA server */
     mediaUploadTimeoutMs?: number
+    detectLinks?: boolean;
 }
 export type MessageGenerationOptionsFromContent = MiscMessageGenerationOptions & {
 	userJid: string
