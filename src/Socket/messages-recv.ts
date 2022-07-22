@@ -369,6 +369,10 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 						}
 					}
 
+					if (attrs.type === 'retry') {
+						return;
+					}
+
 					if(attrs.type === 'retry') {
 						// correctly set who is asking for the retry
 						key.participant = key.participant || attrs.from
@@ -564,11 +568,11 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 	})
 
 	ws.on('CB:call', async(node: BinaryNode) => {
-		flushBufferIfLastOfflineNode(node, 'handling call', handleCall)
+		// flushBufferIfLastOfflineNode(node, 'handling call', handleCall)
 	})
 
 	ws.on('CB:receipt', node => {
-		flushBufferIfLastOfflineNode(node, 'handling receipt', handleReceipt)
+		// flushBufferIfLastOfflineNode(node, 'handling receipt', handleReceipt)
 	})
 
 	ws.on('CB:notification', async(node: BinaryNode) => {
@@ -582,28 +586,28 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 
 	ev.on('call', ([ call ]) => {
 		// missed call + group call notification message generation
-		if(call.status === 'timeout' || (call.status === 'offer' && call.isGroup)) {
-			const msg: proto.IWebMessageInfo = {
-				key: {
-					remoteJid: call.chatId,
-					id: call.id,
-					fromMe: false
-				},
-				messageTimestamp: unixTimestampSeconds(call.date),
-			}
-			if(call.status === 'timeout') {
-				if(call.isGroup) {
-					msg.messageStubType = call.isVideo ? WAMessageStubType.CALL_MISSED_GROUP_VIDEO : WAMessageStubType.CALL_MISSED_GROUP_VOICE
-				} else {
-					msg.messageStubType = call.isVideo ? WAMessageStubType.CALL_MISSED_VIDEO : WAMessageStubType.CALL_MISSED_VOICE
-				}
-			} else {
-				msg.message = { call: { callKey: Buffer.from(call.id) } }
-			}
+		// if(call.status === 'timeout' || (call.status === 'offer' && call.isGroup)) {
+		// 	const msg: proto.IWebMessageInfo = {
+		// 		key: {
+		// 			remoteJid: call.chatId,
+		// 			id: call.id,
+		// 			fromMe: false
+		// 		},
+		// 		messageTimestamp: unixTimestampSeconds(call.date),
+		// 	}
+		// 	if(call.status === 'timeout') {
+		// 		if(call.isGroup) {
+		// 			msg.messageStubType = call.isVideo ? WAMessageStubType.CALL_MISSED_GROUP_VIDEO : WAMessageStubType.CALL_MISSED_GROUP_VOICE
+		// 		} else {
+		// 			msg.messageStubType = call.isVideo ? WAMessageStubType.CALL_MISSED_VIDEO : WAMessageStubType.CALL_MISSED_VOICE
+		// 		}
+		// 	} else {
+		// 		msg.message = { call: { callKey: Buffer.from(call.id) } }
+		// 	}
 
-			const protoMsg = proto.WebMessageInfo.fromObject(msg)
-			upsertMessage(protoMsg, call.offline ? 'append' : 'notify')
-		}
+		// 	const protoMsg = proto.WebMessageInfo.fromObject(msg)
+		// 	upsertMessage(protoMsg, call.offline ? 'append' : 'notify')
+		// }
 	})
 
 	ev.on('connection.update', ({ isOnline }) => {
