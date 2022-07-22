@@ -91,7 +91,7 @@ const processMessage = async(
 		case proto.ProtocolMessage.ProtocolMessageType.HISTORY_SYNC_NOTIFICATION:
 			const histNotification = protocolMsg!.historySyncNotification!
 
-			logger?.info({ histNotification, id: message.key.id }, 'got history notification')
+			logger?.debug({ histNotification, id: message.key.id }, 'got history notification')
 
 			if(downloadHistory) {
 				const isLatest = historyCache.size === 0 && !creds.processedHistoryMessages?.length
@@ -129,7 +129,7 @@ const processMessage = async(
 						for(const { keyData, keyId } of keys) {
 							const strKeyId = Buffer.from(keyId!.keyId!).toString('base64')
 
-							logger?.info({ strKeyId }, 'injecting new app state sync key')
+							logger?.debug({ strKeyId }, 'injecting new app state sync key')
 							await keyStore.set({ 'app-state-sync-key': { [strKeyId]: keyData! } })
 
 							newAppStateSyncKeyId = strKeyId

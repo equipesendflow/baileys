@@ -35,7 +35,7 @@ export const makeChatsSocket = (config: SocketConfig) => {
 	const appStateSyncTimeout = debouncedTimeout(
 		APP_STATE_SYNC_TIMEOUT_MS,
 		async() => {
-			logger.info(
+			logger.debug(
 				{ recvChats: Object.keys(recvChats).length },
 				'doing initial app state sync'
 			)
@@ -342,7 +342,7 @@ export const makeChatsSocket = (config: SocketConfig) => {
 
 						states[name] = state
 
-						logger.info(`resyncing ${name} from v${state.version}`)
+						logger.debug(`resyncing ${name} from v${state.version}`)
 
 						nodes.push({
 							tag: 'collection',
@@ -455,7 +455,7 @@ export const makeChatsSocket = (config: SocketConfig) => {
 		const me = authState.creds.me!
 		if(type === 'available' || type === 'unavailable') {
 			if(!me!.name) {
-				logger.warn('no name present, ignoring presence update request...')
+				logger.debug('no name present, ignoring presence update request...')
 				return
 			}
 

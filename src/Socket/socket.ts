@@ -506,7 +506,10 @@ export const makeSocket = ({
 	})
 
 	ws.on('CB:stream:error', (node: BinaryNode) => {
-		logger.error({ node }, 'stream errored out')
+		if (node.attrs.code !== '515'){
+			logger.error({ node }, 'stream errored out')
+
+		}
 
 		const { reason, statusCode } = getErrorCodeFromStreamError(node)
 
