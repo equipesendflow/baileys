@@ -281,7 +281,7 @@ export const makeSocket = ({
 	}
 
 
-	const end = (error: Error | undefined) => {
+	const end = (error?: Error | undefined) => {
 		if(closed) {
 			return
 		}
