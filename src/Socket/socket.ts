@@ -25,6 +25,7 @@ export const makeSocket = ({
 	auth: authState,
 	printQRInTerminal,
 	defaultQueryTimeoutMs,
+	syncFullHistory,
 	transactionOpts
 }: SocketConfig) => {
 	const ws = new WebSocket(waWebSocketUrl, undefined, {
@@ -178,13 +179,15 @@ export const makeSocket = ({
 
 		const keyEnc = noise.processHandshake(handshake, creds.noiseKey)
 
+		const config = { version, browser, syncFullHistory }
+
 		let node: proto.IClientPayload
 		if(!creds.me) {
-			node = generateRegistrationNode(creds, { version, browser })
-			logger.debug( 'not logged in, attempting registration...')
+			node = generateRegistrationNode(creds, config)
+			logger.debug({ node }, 'not logged in, attempting registration...')
 		} else {
-			node = generateLoginNode(creds.me!.id, { version, browser })
-			logger.debug( 'logging in...')
+			node = generateLoginNode(creds.me!.id, config)
+			logger.debug({ node }, 'logging in...')
 		}
 
 		const payloadEnc = noise.encrypt(
