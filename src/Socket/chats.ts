@@ -764,7 +764,7 @@ export const makeChatsSocket = (config: SocketConfig) => {
 
 			break
 		default:
-			logger.info({ node }, 'received unknown sync')
+			logger.debug({ node }, 'received unknown sync')
 			break
 		}
 	})
