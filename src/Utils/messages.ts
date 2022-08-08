@@ -22,7 +22,7 @@ import {
 	WAProto,
 	WATextMessage,
 } from '../Types'
-import { jidNormalizedUser } from '../WABinary'
+import { isJidGroup, jidNormalizedUser } from '../WABinary'
 import { generateMessageID, unixTimestampSeconds } from './generics'
 import { downloadContentFromMessage, encryptedStream, generateThumbnail, getAudioDuration, MediaDownloadOptions } from './messages-media'
 
@@ -340,6 +340,18 @@ export const generateWAMessageContent = async(
 			}
 			break
 		}
+	} else if('product' in message) {
+		const { imageMessage } = await prepareWAMessageMedia(
+			{ image: message.product.productImage },
+			options
+		)
+		m.productMessage = WAProto.Message.ProductMessage.fromObject({
+			...message,
+			product: {
+				...message.product,
+				productImage: imageMessage,
+			}
+		})
 	} else {
 		m = await prepareWAMessageMedia(
 			message,
@@ -392,6 +404,7 @@ export const generateWAMessageContent = async(
 
 		m = {
 			templateMessage: {
+				fourRowTemplate: msg,
 				hydratedTemplate: msg
 			}
 		}
@@ -494,7 +507,7 @@ export const generateWAMessageFromContent = (
 		message: message,
 		messageTimestamp: timestamp,
 		messageStubParameters: [],
-		participant: jid.includes('@g.us') ? userJid : undefined,
+		participant: isJidGroup(jid) ? userJid : undefined,
 		status: WAMessageStatus.PENDING
 	}
 	return WAProto.WebMessageInfo.fromObject(messageJSON)
@@ -717,4 +730,37 @@ export const assertMediaContent = (content: proto.IMessage | null | undefined) =
 	}
 
 	return mediaContent
+}
+
+
+const generateContextInfo = () => {
+	const info: proto.IMessageContextInfo = {
+		deviceListMetadataVersion: 2,
+		deviceListMetadata: { }
+	}
+	return info
+}
+
+/**
+ * this is an experimental patch to make buttons work
+ * Don't know how it works, but it does for now
+ */
+export const patchMessageForMdIfRequired = (message: proto.IMessage) => {
+	const requiresPatch = !!(
+		message.buttonsMessage
+		// || message.templateMessage
+		|| message.listMessage
+	)
+	if(requiresPatch) {
+		message = {
+			viewOnceMessage: {
+				message: {
+					messageContextInfo: generateContextInfo(),
+					...message
+				}
+			}
+		}
+	}
+
+	return message
 }
