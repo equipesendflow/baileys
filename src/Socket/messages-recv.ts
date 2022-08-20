@@ -427,9 +427,6 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 
 	const handleMessage = async(node: BinaryNode) => {
 
-		console.log('handleMessage')
-		console.log(JSON.stringify(node, null, 2))
-
 		if (node.attrs.category !== 'peer') {
 			return;
 		}
