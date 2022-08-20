@@ -10,6 +10,11 @@ class GroupSessionBuilder {
   async process(senderKeyName, senderKeyDistributionMessage) {
     //console.log('GroupSessionBuilder process', senderKeyName, senderKeyDistributionMessage);
     const senderKeyRecord = await this.senderKeyStore.loadSenderKey(senderKeyName);
+
+    if (!senderKeyRecord) {
+      return;
+    }
+
     senderKeyRecord.addSenderKeyState(
       senderKeyDistributionMessage.getId(),
       senderKeyDistributionMessage.getIteration(),
@@ -23,6 +28,11 @@ class GroupSessionBuilder {
   async create(senderKeyName) {
     const senderKeyRecord = await this.senderKeyStore.loadSenderKey(senderKeyName);
     //console.log('GroupSessionBuilder create session', senderKeyName, senderKeyRecord);
+
+
+    if (!senderKeyRecord) {
+      return;
+    }
 
     if (senderKeyRecord.isEmpty()) {
       const keyId = keyhelper.generateSenderKeyId();
