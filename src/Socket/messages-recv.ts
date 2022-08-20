@@ -426,7 +426,16 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 	}
 
 	const handleMessage = async(node: BinaryNode) => {
+
+		console.log('handleMessage')
+		console.log(JSON.stringify(node, null, 2))
+
+		if (node.attrs.category !== 'peer') {
+			return;
+		}
+
 		const { fullMessage: msg, category, author, decryptionTask } = decodeMessageStanza(node, authState)
+		
 		await Promise.all([
 			processingMutex.mutex(
 				async() => {
