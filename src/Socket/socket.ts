@@ -138,7 +138,7 @@ export const makeSocket = ({
 					ws.off('error', onErr)
 				},
 			)
-			return result as any
+			return result as BinaryNode
 		} finally {
 			ws.off(`TAG:${msgId}`, onRecv!)
 			ws.off('close', onErr!) // if the socket closes, you'll never receive the message
@@ -153,11 +153,10 @@ export const makeSocket = ({
 		}
 
 		const msgId = node.attrs.id
-		const wait = waitForMessage(msgId, timeoutMs)
 
-		await sendNode(node)
+		const [result] = await Promise.all([waitForMessage(msgId, timeoutMs), sendNode(node)])
 
-		const result = await (wait as Promise<BinaryNode>)
+
 		if('tag' in result) {
 			assertNodeErrorFree(result)
 		}
@@ -167,6 +166,13 @@ export const makeSocket = ({
 
 	/** connection handshake */
 	const validateConnection = async() => {
+		if (closed) {
+			try {
+				ws.close()
+			} catch (e: any){ }
+			return;
+		}
+
 		let helloMsg: proto.IHandshakeMessage = {
 			clientHello: { ephemeral: ephemeralKeyPair.public }
 		}
@@ -310,11 +316,13 @@ export const makeSocket = ({
 		ws.removeAllListeners('open')
 		ws.removeAllListeners('message')
 
-		if(ws.readyState !== ws.CLOSED && ws.readyState !== ws.CLOSING) {
+		if(ws.readyState === ws.OPEN) {
 			try {
-				ws.close()
-			} catch{ }
+					ws.close()
+			} catch (e: any){ }
 		}
+
+		
 
 		ev.emit('connection.update', {
 			connection: 'close',
@@ -399,11 +407,14 @@ export const makeSocket = ({
 				{ tag, attrs: { } }
 			]
 		})
-	)
+	).catch(err => {
+		logger.error({ trace: err.stack }, 'error in sending passive iq')
+	})
 
 	/** logout & invalidate connection */
 	const logout = async() => {
-		const jid = authState.creds.me?.id
+		try {
+			const jid = authState.creds.me?.id
 		if(jid) {
 			await sendNode({
 				tag: 'iq',
@@ -424,6 +435,9 @@ export const makeSocket = ({
 				]
 			})
 		}
+		} catch (error: any) {
+			logger.info({ error }, 'error in logout')
+		}
 
 		end(new Boom('Intentional Logout', { statusCode: DisconnectReason.loggedOut }))
 	}
@@ -441,44 +455,49 @@ export const makeSocket = ({
 	ws.on('CB:xmlstreamend', () => end(new Boom('Connection Terminated by Server', { statusCode: DisconnectReason.connectionClosed })))
 	// QR gen
 	ws.on('CB:iq,type:set,pair-device', async(stanza: BinaryNode) => {
-		const iq: BinaryNode = {
-			tag: 'iq',
-			attrs: {
-				to: S_WHATSAPP_NET,
-				type: 'result',
-				id: stanza.attrs.id,
+		try {
+			const iq: BinaryNode = {
+				tag: 'iq',
+				attrs: {
+					to: S_WHATSAPP_NET,
+					type: 'result',
+					id: stanza.attrs.id,
+				}
 			}
+			await sendNode(iq)
+	
+			const pairDeviceNode = getBinaryNodeChild(stanza, 'pair-device')
+			const refNodes = getBinaryNodeChildren(pairDeviceNode, 'ref')
+			const noiseKeyB64 = Buffer.from(creds.noiseKey.public).toString('base64')
+			const identityKeyB64 = Buffer.from(creds.signedIdentityKey.public).toString('base64')
+			const advB64 = creds.advSecretKey
+	
+			let qrMs = qrTimeout || 60_000 // time to let a QR live
+			const genPairQR = () => {
+				if(ws.readyState !== ws.OPEN) {
+					return
+				}
+	
+				const refNode = refNodes.shift()
+				if(!refNode) {
+					end(new Boom('QR refs attempts ended', { statusCode: DisconnectReason.timedOut }))
+					return
+				}
+	
+				const ref = (refNode.content as Buffer).toString('utf-8')
+				const qr = [ref, noiseKeyB64, identityKeyB64, advB64].join(',')
+	
+				ev.emit('connection.update', { qr })
+	
+				qrTimer = setTimeout(genPairQR, qrMs)
+				qrMs = qrTimeout || 20_000 // shorter subsequent qrs
+			}
+	
+			genPairQR()
+		} catch (error: any) {
+			logger.info({ error }, 'error in qr gen')
+
 		}
-		await sendNode(iq)
-
-		const pairDeviceNode = getBinaryNodeChild(stanza, 'pair-device')
-		const refNodes = getBinaryNodeChildren(pairDeviceNode, 'ref')
-		const noiseKeyB64 = Buffer.from(creds.noiseKey.public).toString('base64')
-		const identityKeyB64 = Buffer.from(creds.signedIdentityKey.public).toString('base64')
-		const advB64 = creds.advSecretKey
-
-		let qrMs = qrTimeout || 60_000 // time to let a QR live
-		const genPairQR = () => {
-			if(ws.readyState !== ws.OPEN) {
-				return
-			}
-
-			const refNode = refNodes.shift()
-			if(!refNode) {
-				end(new Boom('QR refs attempts ended', { statusCode: DisconnectReason.timedOut }))
-				return
-			}
-
-			const ref = (refNode.content as Buffer).toString('utf-8')
-			const qr = [ref, noiseKeyB64, identityKeyB64, advB64].join(',')
-
-			ev.emit('connection.update', { qr })
-
-			qrTimer = setTimeout(genPairQR, qrMs)
-			qrMs = qrTimeout || 20_000 // shorter subsequent qrs
-		}
-
-		genPairQR()
 	})
 	// device paired for the first time
 	// if device pairs successfully, the server asks to restart the connection
@@ -503,13 +522,17 @@ export const makeSocket = ({
 	})
 	// login complete
 	ws.on('CB:success', async() => {
-		await uploadPreKeysToServerIfRequired()
-		await sendPassiveIq('active')
+		try {
+			await uploadPreKeysToServerIfRequired()
+			await sendPassiveIq('active')
 
-		logger.debug('opened connection to WA')
-		clearTimeout(qrTimer) // will never happen in all likelyhood -- but just in case WA sends success on first try
+			logger.debug('opened connection to WA')
+			clearTimeout(qrTimer) // will never happen in all likelyhood -- but just in case WA sends success on first try
 
-		ev.emit('connection.update', { connection: 'open' })
+			ev.emit('connection.update', { connection: 'open' })
+		} catch(error: any) {
+			logger.info({  error }, 'error in CB:success')
+		}
 	})
 
 	ws.on('CB:stream:error', (node: BinaryNode) => {
