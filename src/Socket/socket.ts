@@ -183,7 +183,7 @@ export const makeSocket = ({
 		const init = proto.HandshakeMessage.encode(helloMsg).finish()
 
 		const result = await awaitNextMessage(init)
-		const handshake = proto.HandshakeMessage.decode(result)
+		const handshake = proto.HandshakeMessage.decode(new Uint8Array(result))
 
 		logger.trace({ handshake }, 'handshake recv from WA Web')
 
