@@ -166,53 +166,59 @@ export const makeSocket = ({
 
 	/** connection handshake */
 	const validateConnection = async() => {
-		if (closed) {
-			try {
-				ws.close()
-			} catch (e: any){ }
-			return;
+		try {
+			if (closed) {
+				try {
+					ws.close()
+				} catch (e: any){ }
+				return;
+			}
+	
+			let helloMsg: proto.IHandshakeMessage = {
+				clientHello: { ephemeral: ephemeralKeyPair.public }
+			}
+			helloMsg = proto.HandshakeMessage.fromObject(helloMsg)
+	
+			logger.info('connected to WA Web')
+	
+			const init = proto.HandshakeMessage.encode(helloMsg).finish()
+	
+			const result = await awaitNextMessage(init)
+			const handshake = proto.HandshakeMessage.decode(new Uint8Array(result))
+	
+			logger.trace({ handshake }, 'handshake recv from WA Web')
+	
+			const keyEnc = noise.processHandshake(handshake, creds.noiseKey)
+	
+			const config = { version, browser, syncFullHistory }
+	
+			let node: proto.IClientPayload
+			if(!creds.me) {
+				node = generateRegistrationNode(creds, config)
+				logger.debug({ node }, 'not logged in, attempting registration...')
+			} else {
+				node = generateLoginNode(creds.me!.id, config)
+				logger.debug({ node }, 'logging in...')
+			}
+	
+			const payloadEnc = noise.encrypt(
+				proto.ClientPayload.encode(node).finish()
+			)
+			await sendRawMessage(
+				proto.HandshakeMessage.encode({
+					clientFinish: {
+						static: keyEnc,
+						payload: payloadEnc,
+					},
+				}).finish()
+			)
+			noise.finishInit()
+			startKeepAliveRequest()
+		} catch(error: any) {
+			logger.info({  error }, 'error in validateConnection');
+
+			end(new Boom('Error in validateConnection', { statusCode: DisconnectReason.connectionClosed }))
 		}
-
-		let helloMsg: proto.IHandshakeMessage = {
-			clientHello: { ephemeral: ephemeralKeyPair.public }
-		}
-		helloMsg = proto.HandshakeMessage.fromObject(helloMsg)
-
-		logger.info('connected to WA Web')
-
-		const init = proto.HandshakeMessage.encode(helloMsg).finish()
-
-		const result = await awaitNextMessage(init)
-		const handshake = proto.HandshakeMessage.decode(new Uint8Array(result))
-
-		logger.trace({ handshake }, 'handshake recv from WA Web')
-
-		const keyEnc = noise.processHandshake(handshake, creds.noiseKey)
-
-		const config = { version, browser, syncFullHistory }
-
-		let node: proto.IClientPayload
-		if(!creds.me) {
-			node = generateRegistrationNode(creds, config)
-			logger.debug({ node }, 'not logged in, attempting registration...')
-		} else {
-			node = generateLoginNode(creds.me!.id, config)
-			logger.debug({ node }, 'logging in...')
-		}
-
-		const payloadEnc = noise.encrypt(
-			proto.ClientPayload.encode(node).finish()
-		)
-		await sendRawMessage(
-			proto.HandshakeMessage.encode({
-				clientFinish: {
-					static: keyEnc,
-					payload: payloadEnc,
-				},
-			}).finish()
-		)
-		noise.finishInit()
-		startKeepAliveRequest()
 	}
 
 	const getAvailablePreKeysOnServer = async() => {
