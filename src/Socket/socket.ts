@@ -185,6 +185,11 @@ export const makeSocket = ({
 	
 			const result = await awaitNextMessage(init)
 			const handshake = proto.HandshakeMessage.decode(new Uint8Array(result))
+
+			if (!handshake) {
+				end(new Boom('handshake not recv from WA Web', { statusCode: DisconnectReason.connectionClosed }))
+				return;
+			}
 	
 			logger.trace({ handshake }, 'handshake recv from WA Web')
 	
