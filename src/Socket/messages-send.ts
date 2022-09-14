@@ -615,7 +615,8 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 							}
 							return getUrlInfo(
 								text,
-								{ thumbnailWidth: linkPreviewImageThumbnailWidth, timeoutMs: 3_000 }
+								{ thumbnailWidth: linkPreviewImageThumbnailWidth, timeoutMs: 3_000 },
+								logger
 							)
 						},
 						upload: waUploadToServer,

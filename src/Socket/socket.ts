@@ -423,7 +423,7 @@ export const makeSocket = ({
 	})
 
 	/** logout & invalidate connection */
-	const logout = async() => {
+	const logout = async(msg?: string) => {
 		try {
 			const jid = authState.creds.me?.id
 		if(jid) {
@@ -450,7 +450,7 @@ export const makeSocket = ({
 			logger.info({ error }, 'error in logout')
 		}
 
-		end(new Boom('Intentional Logout', { statusCode: DisconnectReason.loggedOut }))
+		end(new Boom(msg || 'Intentional Logout', { statusCode: DisconnectReason.loggedOut }))
 	}
 
 	ws.on('message', onMessageRecieved)
