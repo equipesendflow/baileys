@@ -9,7 +9,11 @@ import { areJidsSameUser, BinaryNode, BinaryNodeAttributes, getBinaryNodeChild, 
 import { makeGroupsSocket } from './groups'
 
 export const makeMessagesSocket = (config: SocketConfig) => {
-	const { logger, linkPreviewImageThumbnailWidth } = config
+	const {
+		logger,
+		linkPreviewImageThumbnailWidth,
+		generateHighQualityLinkPreview
+	} = config
 	const sock = makeGroupsSocket(config)
 	const {
 		ev,
@@ -609,16 +613,36 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 					{
 						logger,
 						userJid,
+<<<<<<< HEAD
 						getUrlInfo: async text => {
 							if (!options.detectLinks) {
 								return undefined;
 							}
 							return getUrlInfo(
 								text,
-								{ thumbnailWidth: linkPreviewImageThumbnailWidth, timeoutMs: 3_000 },
+								{
+									thumbnailWidth: linkPreviewImageThumbnailWidth,
+									timeoutMs: 3_000,
+									uploadImage: generateHighQualityLinkPreview
+										? waUploadToServer
+										: undefined
+								},
 								logger
 							)
 						},
+=======
+						getUrlInfo: text => getUrlInfo(
+							text,
+							{
+								thumbnailWidth: linkPreviewImageThumbnailWidth,
+								timeoutMs: 3_000,
+								uploadImage: generateHighQualityLinkPreview
+									? waUploadToServer
+									: undefined
+							},
+							logger
+						),
+>>>>>>> 586db48d2bd404a6645438997d20525724e8ca83
 						upload: waUploadToServer,
 						mediaCache: config.mediaCache,
 						...options,
