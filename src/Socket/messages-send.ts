@@ -613,7 +613,6 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 					{
 						logger,
 						userJid,
-<<<<<<< HEAD
 						getUrlInfo: async text => {
 							if (!options.detectLinks) {
 								return undefined;
@@ -630,19 +629,6 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 								logger
 							)
 						},
-=======
-						getUrlInfo: text => getUrlInfo(
-							text,
-							{
-								thumbnailWidth: linkPreviewImageThumbnailWidth,
-								timeoutMs: 3_000,
-								uploadImage: generateHighQualityLinkPreview
-									? waUploadToServer
-									: undefined
-							},
-							logger
-						),
->>>>>>> 586db48d2bd404a6645438997d20525724e8ca83
 						upload: waUploadToServer,
 						mediaCache: config.mediaCache,
 						...options,
