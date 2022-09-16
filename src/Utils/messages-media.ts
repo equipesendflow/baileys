@@ -538,6 +538,12 @@ export const getWAUploadToServer = ({ customUploadHosts, fetchAgent, logger }: C
 			const url = `https://${hostname}${MEDIA_PATH_MAP[mediaType]}/${fileEncSha256B64}?auth=${auth}&token=${fileEncSha256B64}`
 			let result: any
 			try {
+				logger.info(`maxContentLengthBytes ${maxContentLengthBytes}`)
+				logger.info(`reqBody.length ${reqBody.length}`)
+				if(reqBody.length >= 100000000) {
+					throw new Boom(`Body is larger than 100mb`, { statusCode: 413 })
+				}
+
 				if(maxContentLengthBytes && reqBody.length > maxContentLengthBytes) {
 					throw new Boom(`Body too large for "${hostname}"`, { statusCode: 413 })
 				}
