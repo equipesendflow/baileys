@@ -151,6 +151,11 @@ export const prepareWAMessageMedia = async(
 		options.mediaTypeOverride || mediaType,
 		requiresOriginalForSomeProcessing
 	)
+
+	if(fileLength >= 100000000) {
+		throw new Boom('Media body is larger than 100MB', { statusCode: 413 })
+	}
+
 	 // url safe Base64 encode the SHA256 hash of the body
 	const fileEncSha256B64 = fileEncSha256.toString('base64')
 	const [{ mediaUrl, directPath }] = await Promise.all([
