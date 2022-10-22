@@ -168,7 +168,6 @@ export const makeSocket = ({
 
 	/** connection handshake */
 	const validateConnection = async() => {
-		try {
 			if (closed) {
 				try {
 					ws.close()
@@ -221,11 +220,6 @@ export const makeSocket = ({
 			)
 			noise.finishInit()
 			startKeepAliveRequest()
-		} catch(error: any) {
-			logger.info({  error }, 'error in validateConnection');
-
-			end(new Boom('Error in validateConnection', { statusCode: DisconnectReason.connectionClosed }))
-		}
 	}
 
 	const getAvailablePreKeysOnServer = async() => {
@@ -460,7 +454,14 @@ export const makeSocket = ({
 	}
 
 	ws.on('message', onMessageRecieved)
-	ws.on('open', validateConnection)
+	ws.on('open', async() => {
+		try {
+			await validateConnection()
+		} catch(err) {
+			logger.error({ err }, 'error in validating connection')
+			end(err)
+		}
+	})
 	ws.on('error', error => end(
 		new Boom(
 			`WebSocket Error (${error.message})`,
