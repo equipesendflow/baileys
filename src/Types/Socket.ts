@@ -70,6 +70,27 @@ export type SocketConfig = {
      * */
     generateHighQualityLinkPreview: boolean
 
+    /**
+     * Returns if a jid should be ignored,
+     * no event for that jid will be triggered.
+     * Messages from that jid will also not be decrypted
+     * */
+    shouldIgnoreJid: (jid: string) => boolean | undefined
+
+    /**
+     * Optionally patch the message before sending out
+     * */
+    patchMessageBeforeSending: (
+        msg: proto.IMessage,
+        recipientJids: string[],
+    ) => Promise<proto.IMessage> | proto.IMessage
+
+    /** verify app state MACs */
+    appStateMacVerification: {
+        patch: boolean
+        snapshot: boolean
+    }
+
     /** options for axios */
     options: AxiosRequestConfig<any>
     /**

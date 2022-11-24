@@ -50,11 +50,17 @@ export const DEFAULT_CONNECTION_CONFIG: SocketConfig = {
 	auth: undefined as any,
 	markOnlineOnConnect: true,
 	syncFullHistory: false,
+	patchMessageBeforeSending: msg => msg,
 	shouldSyncHistoryMessage: () => true,
+	shouldIgnoreJid: () => false,
 	linkPreviewImageThumbnailWidth: 192,
 	transactionOpts: { maxCommitRetries: 10, delayBetweenTriesMs: 3000 },
 	generateHighQualityLinkPreview: false,
 	options: { },
+	appStateMacVerification: {
+		patch: false,
+		snapshot: false,
+	},
 	getMessage: async() => undefined
 }
 
