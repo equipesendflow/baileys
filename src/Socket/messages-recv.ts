@@ -524,9 +524,9 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 	}
 
 	const handleMessage = async(node: BinaryNode) => {
-		if (node.attrs.category !== 'peer') {
-			return;
-		}
+		// if (node.attrs.category !== 'peer') {
+		// 	return;
+		// }
 		
 		const { fullMessage: msg, category, author, decrypt } = decodeMessageStanza(node, authState)
 		if(shouldIgnoreJid(msg.key.remoteJid!)) {
@@ -673,7 +673,7 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 	})
 
 	ws.on('CB:receipt', node => {
-		// processNodeWithBuffer(node, 'handling receipt', handleReceipt)
+		processNodeWithBuffer(node, 'handling receipt', handleReceipt)
 	})
 
 	ws.on('CB:notification', async(node: BinaryNode) => {
