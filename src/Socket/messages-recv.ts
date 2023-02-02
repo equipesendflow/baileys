@@ -552,7 +552,7 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 					await decrypt()
 					// message failed to decrypt
 					if(msg.messageStubType === proto.WebMessageInfo.StubType.CIPHERTEXT) {
-						logger.error(
+						logger.debug(
 							{ key: msg.key, params: msg.messageStubParameters },
 							'failure in decrypting message'
 						)
