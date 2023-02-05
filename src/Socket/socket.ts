@@ -648,8 +648,8 @@ function mapWebSocketError(handler: (err: Error) => void) {
 	return (error: Error) => {
 		handler(
 			new Boom(
-				`WebSocket Error (${error.message})`,
-				{ statusCode: getCodeFromWSError(error), data: error }
+				`WebSocket Error (${error?.message})`,
+				{ statusCode: error ? getCodeFromWSError(error) : 408, data: error }
 			)
 		)
 	}
