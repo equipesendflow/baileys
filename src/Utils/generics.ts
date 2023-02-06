@@ -348,7 +348,7 @@ const UNEXPECTED_SERVER_CODE_TEXT = 'Unexpected server response: '
 
 export const getCodeFromWSError = (error: Error) => {
 	let statusCode = 500
-	if(error.message.includes(UNEXPECTED_SERVER_CODE_TEXT)) {
+	if(error.message && error.message.includes(UNEXPECTED_SERVER_CODE_TEXT)) {
 		const code = +error.message.slice(UNEXPECTED_SERVER_CODE_TEXT.length)
 		if(!Number.isNaN(code) && code >= 400) {
 			statusCode = code
