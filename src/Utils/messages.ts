@@ -149,7 +149,11 @@ export const prepareWAMessageMedia = async(
 	} = await encryptedStream(
 		uploadData.media,
 		options.mediaTypeOverride || mediaType,
-		requiresOriginalForSomeProcessing
+		{
+			logger,
+			saveOriginalFileIfRequired: requiresOriginalForSomeProcessing,
+			opts: options.options
+		}
 	)
 
 	if(fileLength >= 100000000) {
