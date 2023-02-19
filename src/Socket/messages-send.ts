@@ -52,7 +52,10 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 				const mediaConnNode = getBinaryNodeChild(result, 'media_conn')
 				const node: MediaConnInfo = {
 					hosts: getBinaryNodeChildren(mediaConnNode, 'host').map(
-						item => item.attrs as any
+						({ attrs }) => ({
+							hostname: attrs.hostname,
+							maxContentLengthBytes: +attrs.maxContentLengthBytes,
+						})
 					),
 					auth: mediaConnNode!.attrs.auth,
 					ttl: +mediaConnNode!.attrs.ttl,
@@ -322,7 +325,7 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 			// only send to the specific device that asked for a retry
 			// otherwise the message is sent out to every device that should be a recipient
 			if(!isGroup) {
-				additionalAttributes = { ...additionalAttributes, device_fanout: 'false' }
+				additionalAttributes = { ...additionalAttributes, 'device_fanout': 'false' }
 			}
 
 			const { user, device } = jidDecode(participant.jid)!
@@ -645,6 +648,7 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 						)},
 						upload: waUploadToServer,
 						mediaCache: config.mediaCache,
+						options: config.options,
 						...options,
 					}
 				)
