@@ -157,10 +157,6 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 			}
 		}
 
-		if (!users.length) {
-			return deviceResults
-		}
-
 		const iq: BinaryNode = {
 			tag: 'iq',
 			attrs: {
@@ -294,7 +290,7 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 		)
 		return { nodes, shouldIncludeDeviceIdentity }
 	}
-	
+
 	const relayMessage = async(
 		jid: string,
 		message: proto.IMessage,
@@ -551,7 +547,7 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 		sendReceipts,
 		readMessages,
 		refreshMediaConn,
-    waUploadToServer,
+		waUploadToServer,
 		fetchPrivacySettings,
 		updateMediaMessage: async(message: proto.IWebMessageInfo) => {
 			const content = assertMediaContent(message.message)
