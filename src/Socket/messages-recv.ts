@@ -484,9 +484,8 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 						}
 					}
 
-					if (attrs.type === 'retry') {
-						return;
-					}
+
+
 
 					if(attrs.type === 'retry') {
 						// correctly set who is asking for the retry
