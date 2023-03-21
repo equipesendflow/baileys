@@ -60,7 +60,7 @@ export const xmppPreKey = (pair: KeyPair, id: number): BinaryNode => (
 		attrs: { },
 		content: [
 			{ tag: 'id', attrs: { }, content: encodeBigEndian(id, 3) },
-			{ tag: 'value', attrs: { }, content: pair.public }
+			{ tag: 'value', attrs: { }, content: pair?.public }
 		]
 	}
 )
