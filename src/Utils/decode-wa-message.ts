@@ -166,7 +166,7 @@ export const decryptMessageNode = (
 							fullMessage.message = msg
 						}
 					} catch(err) {
-						logger.error(
+						logger.debug(
 							{ key: fullMessage.key, err },
 							'failed to decrypt message'
 						)
