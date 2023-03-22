@@ -335,51 +335,54 @@ const processMessage = async(
 			break
 		}
 	} else if(content?.pollUpdateMessage) {
-		const creationMsgKey = content.pollUpdateMessage.pollCreationMessageKey!
-		// we need to fetch the poll creation message to get the poll enc key
-		const pollMsg = await getMessage(creationMsgKey)
-		if(pollMsg) {
-			const meIdNormalised = jidNormalizedUser(meId)
-			const pollCreatorJid = getKeyAuthor(creationMsgKey, meIdNormalised)
-			const voterJid = getKeyAuthor(message.key!, meIdNormalised)
-			const pollEncKey = pollMsg.messageContextInfo?.messageSecret!
-
-			try {
-				const voteMsg = decryptPollVote(
-					content.pollUpdateMessage.vote!,
-					{
-						pollEncKey,
-						pollCreatorJid,
-						pollMsgId: creationMsgKey.id!,
-						voterJid,
-					}
-				)
-				ev.emit('messages.update', [
-					{
-						key: creationMsgKey,
-						update: {
-							pollUpdates: [
-								{
-									pollUpdateMessageKey: message.key,
-									vote: voteMsg,
-									senderTimestampMs: message.messageTimestamp,
-								}
-							]
+		if (content.pollUpdateMessage.pollCreationMessageKey?.id === 'ignore this block') {
+			const creationMsgKey = content.pollUpdateMessage.pollCreationMessageKey!
+			// we need to fetch the poll creation message to get the poll enc key
+			const pollMsg = await getMessage(creationMsgKey)
+			if(pollMsg) {
+				const meIdNormalised = jidNormalizedUser(meId)
+				const pollCreatorJid = getKeyAuthor(creationMsgKey, meIdNormalised)
+				const voterJid = getKeyAuthor(message.key!, meIdNormalised)
+				const pollEncKey = pollMsg.messageContextInfo?.messageSecret!
+	
+				try {
+					const voteMsg = decryptPollVote(
+						content.pollUpdateMessage.vote!,
+						{
+							pollEncKey,
+							pollCreatorJid,
+							pollMsgId: creationMsgKey.id!,
+							voterJid,
 						}
-					}
-				])
-			} catch(err) {
+					)
+					ev.emit('messages.update', [
+						{
+							key: creationMsgKey,
+							update: {
+								pollUpdates: [
+									{
+										pollUpdateMessageKey: message.key,
+										vote: voteMsg,
+										senderTimestampMs: message.messageTimestamp,
+									}
+								]
+							}
+						}
+					])
+				} catch(err) {
+					logger?.warn(
+						{ err, creationMsgKey },
+						'failed to decrypt poll vote'
+					)
+				}
+			} else {
 				logger?.warn(
-					{ err, creationMsgKey },
-					'failed to decrypt poll vote'
+					{ creationMsgKey },
+					'poll creation message not found, cannot decrypt update'
 				)
 			}
-		} else {
-			logger?.warn(
-				{ creationMsgKey },
-				'poll creation message not found, cannot decrypt update'
-			)
 		}
+		
 	}
 
 	if(Object.keys(chat).length > 1) {
