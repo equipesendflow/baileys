@@ -679,6 +679,48 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 
 				return fullMsg
 			}
+		},
+		prepareMessage: async(
+			jid: string,
+			content: AnyMessageContent,
+			options: MiscMessageGenerationOptions = { }
+		) => {
+			const userJid = authState.creds.me!.id
+
+
+			const fullMsg = await generateWAMessage(
+				jid,
+				content,
+				{
+					logger,
+					userJid,
+					getUrlInfo: async text => {
+						if (!options.detectLinks) {
+							return undefined;
+						}
+
+						return getUrlInfo(
+						text,
+						{
+							thumbnailWidth: linkPreviewImageThumbnailWidth,
+							fetchOpts: {
+								timeout: 3_000,
+								...axiosOptions || { }
+							},
+							logger,
+							uploadImage: generateHighQualityLinkPreview
+								? waUploadToServer
+								: undefined
+						},
+					)},
+					upload: waUploadToServer,
+					mediaCache: config.mediaCache,
+					options: config.options,
+					...options,
+				}
+			)
+			
+			return fullMsg
 		}
 	}
 }
