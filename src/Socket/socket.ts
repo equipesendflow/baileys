@@ -285,9 +285,9 @@ export const makeSocket = ({
 			if(!(frame instanceof Uint8Array)) {
 				const msgId = frame.attrs.id
 
-				if(logger.level === 'trace') {
-					logger.trace({ msgId, fromMe: false, frame }, 'communication')
-				}
+				// if(logger.level === 'trace') {
+				// 	logger.trace({ msgId, fromMe: false, frame }, 'communication')
+				// }
 
 				/* Check if this is a response to a message we sent */
 				anyTriggered = ws.emit(`${DEF_TAG_PREFIX}${msgId}`, frame) || anyTriggered
@@ -304,9 +304,9 @@ export const makeSocket = ({
 				anyTriggered = ws.emit(`${DEF_CALLBACK_PREFIX}${l0},,${l2}`, frame) || anyTriggered
 				anyTriggered = ws.emit(`${DEF_CALLBACK_PREFIX}${l0}`, frame) || anyTriggered
 
-				if(!anyTriggered && logger.level === 'debug') {
-					logger.debug({ unhandled: true, msgId, fromMe: false, frame }, 'communication recv')
-				}
+				// if(!anyTriggered && logger.level === 'debug') {
+				// 	logger.debug({ unhandled: true, msgId, fromMe: false, frame }, 'communication recv')
+				// }
 			}
 		})
 	}

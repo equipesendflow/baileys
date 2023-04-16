@@ -147,7 +147,7 @@ export const makeNoiseHandler = (
 
 			inBytes = Buffer.concat([ inBytes, newData ])
 
-			logger.trace(`recv ${newData.length} bytes, total recv ${inBytes.length} bytes`)
+			// logger.trace(`recv ${newData.length} bytes, total recv ${inBytes.length} bytes`)
 
 			let size = getBytesSize()
 			while(size && inBytes.length >= size + 3) {
@@ -159,7 +159,7 @@ export const makeNoiseHandler = (
 					frame = decodeBinaryNode(result)
 				}
 
-				logger.trace({ msg: (frame as any)?.attrs?.id }, 'recv frame')
+				// logger.trace({ msg: (frame as any)?.attrs?.id }, 'recv frame')
 
 				onFrame(frame)
 				size = getBytesSize()
