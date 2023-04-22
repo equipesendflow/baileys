@@ -200,3 +200,23 @@ export const initAuthCreds = (): AuthenticationCreds => {
 		}
 	}
 }
+
+export const addTransactionCapabilitySimple = (
+	state: SignalKeyStore,
+	logger: Logger,
+	{ maxCommitRetries, delayBetweenTriesMs }: TransactionCapabilityOptions
+): SignalKeyStoreWithTransaction => {
+
+	return {
+		get: async(type, ids) => {
+			return state.get(type, ids)
+		},
+		set: data => {
+			return state.set(data)
+		},
+		isInTransaction: () => false,
+		transaction(work) {
+			return work()
+		}
+	}
+}
