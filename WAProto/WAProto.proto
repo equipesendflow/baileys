@@ -5,13 +5,20 @@ message ADVDeviceIdentity {
     optional uint32 rawId = 1;
     optional uint64 timestamp = 2;
     optional uint32 keyIndex = 3;
+    optional ADVEncryptionType accountType = 4;
+    optional ADVEncryptionType deviceType = 5;
 }
 
+enum ADVEncryptionType {
+    E2EE = 0;
+    HOSTED = 1;
+}
 message ADVKeyIndexList {
     optional uint32 rawId = 1;
     optional uint64 timestamp = 2;
     optional uint32 currentIndex = 3;
     repeated uint32 validIndexes = 4 [packed=true];
+    optional ADVEncryptionType accountType = 5;
 }
 
 message ADVSignedDeviceIdentity {
@@ -418,6 +425,11 @@ message Conversation {
     }
 }
 
+message DeviceConsistencyCodeMessage {
+    optional uint32 generation = 1;
+    optional bytes signature = 2;
+}
+
 message DeviceListMetadata {
     optional bytes senderKeyHash = 1;
     optional uint64 senderTimestamp = 2;
@@ -636,6 +648,14 @@ enum KeepType {
     KEEP_FOR_ALL = 1;
     UNDO_KEEP_FOR_ALL = 2;
 }
+message KeyExchangeMessage {
+    optional uint32 id = 1;
+    optional bytes baseKey = 2;
+    optional bytes ratchetKey = 3;
+    optional bytes identityKey = 4;
+    optional bytes baseKeySignature = 5;
+}
+
 message KeyId {
     optional bytes id = 1;
 }
@@ -726,7 +746,7 @@ message Message {
     optional PollCreationMessage pollCreationMessageV2 = 60;
     optional ScheduledCallCreationMessage scheduledCallCreationMessage = 61;
     optional FutureProofMessage groupMentionedMessage = 62;
-    optional PinMessage pinMessage = 63;
+    optional PinInChatMessage pinInChatMessage = 63;
     optional PollCreationMessage pollCreationMessageV3 = 64;
     optional ScheduledCallEditMessage scheduledCallEditMessage = 65;
     optional VideoMessage ptvMessage = 66;
@@ -1047,6 +1067,7 @@ message Message {
         optional uint32 progress = 9;
         optional int64 oldestMsgInChunkTimestampSec = 10;
         optional bytes initialHistBootstrapInlinePayload = 11;
+        optional string peerDataRequestSessionId = 12;
         enum HistorySyncType {
             INITIAL_BOOTSTRAP = 0;
             INITIAL_STATUS_V3 = 1;
@@ -1395,12 +1416,12 @@ message Message {
         HISTORY_SYNC_ON_DEMAND = 3;
         PLACEHOLDER_MESSAGE_RESEND = 4;
     }
-    message PinMessage {
+    message PinInChatMessage {
         optional MessageKey key = 1;
-        optional PinMessageType pinMessageType = 2;
+        optional Type type = 2;
         optional int64 senderTimestampMs = 3;
-        enum PinMessageType {
-            UNKNOWN_PIN_MESSAGE_TYPE = 0;
+        enum Type {
+            UNKNOWN_TYPE = 0;
             PIN_FOR_ALL = 1;
             UNPIN_FOR_ALL = 2;
         }
@@ -1654,6 +1675,10 @@ message Message {
     
 }
 
+message MessageAddOnContextInfo {
+    optional uint32 messageAddOnDurationInSecs = 1;
+}
+
 message MessageContextInfo {
     optional DeviceListMetadata deviceListMetadata = 1;
     optional int32 deviceListMetadataVersion = 2;
@@ -1856,6 +1881,19 @@ message PhotoChange {
     optional uint32 newPhotoId = 3;
 }
 
+message PinInChat {
+    optional Type type = 1;
+    optional MessageKey key = 2;
+    optional int64 senderTimestampMs = 3;
+    optional int64 serverTimestampMs = 4;
+    optional MessageAddOnContextInfo messageAddOnContextInfo = 5;
+    enum Type {
+        UNKNOWN_TYPE = 0;
+        PIN_FOR_ALL = 1;
+        UNPIN_FOR_ALL = 2;
+    }
+}
+
 message Point {
     optional int32 xDeprecated = 1;
     optional int32 yDeprecated = 2;
@@ -1886,6 +1924,15 @@ message PreKeyRecordStructure {
     optional bytes privateKey = 3;
 }
 
+message PreKeySignalMessage {
+    optional uint32 registrationId = 5;
+    optional uint32 preKeyId = 1;
+    optional uint32 signedPreKeyId = 6;
+    optional bytes baseKey = 2;
+    optional bytes identityKey = 3;
+    optional bytes message = 4;
+}
+
 message Pushname {
     optional string id = 1;
     optional string pushname = 2;
@@ -1907,6 +1954,19 @@ message RecentEmojiWeight {
 message RecordStructure {
     optional SessionStructure currentSession = 1;
     repeated SessionStructure previousSessions = 2;
+}
+
+message SenderKeyDistributionMessage {
+    optional uint32 id = 1;
+    optional uint32 iteration = 2;
+    optional bytes chainKey = 3;
+    optional bytes signingKey = 4;
+}
+
+message SenderKeyMessage {
+    optional uint32 id = 1;
+    optional uint32 iteration = 2;
+    optional bytes ciphertext = 3;
 }
 
 message SenderKeyRecordStructure {
@@ -1990,6 +2050,13 @@ message SessionStructure {
     
 }
 
+message SignalMessage {
+    optional bytes ratchetKey = 1;
+    optional uint32 counter = 2;
+    optional uint32 previousCounter = 3;
+    optional bytes ciphertext = 4;
+}
+
 message SignedPreKeyRecordStructure {
     optional uint32 id = 1;
     optional bytes publicKey = 2;
@@ -2060,6 +2127,7 @@ message SyncActionValue {
     optional MarketingMessageAction marketingMessageAction = 38;
     optional MarketingMessageBroadcastAction marketingMessageBroadcastAction = 39;
     optional ExternalWebBetaAction externalWebBetaAction = 40;
+    optional PrivacySettingRelayAllCalls privacySettingRelayAllCalls = 41;
     message AgentAction {
         optional string name = 1;
         optional int32 deviceID = 2;
@@ -2133,14 +2201,13 @@ message SyncActionValue {
     message MarketingMessageAction {
         optional string name = 1;
         optional string message = 2;
-        optional MarketingMessageMsgType msgType = 3;
+        optional MarketingMessagePrototypeType type = 3;
         optional int64 createdAt = 4;
         optional int64 lastSentAt = 5;
         optional bool isDeleted = 6;
-        enum MarketingMessageMsgType {
-            TEXT = 0;
-            IMAGE = 1;
-            VIDEO = 2;
+        optional string mediaId = 7;
+        enum MarketingMessagePrototypeType {
+            PERSONALIZED = 0;
         }
     }
     
@@ -2172,6 +2239,10 @@ message SyncActionValue {
     
     message PrimaryVersionAction {
         optional string version = 1;
+    }
+    
+    message PrivacySettingRelayAllCalls {
+        optional bool isEnabled = 1;
     }
     
     message PushNameSetting {
@@ -2445,6 +2516,7 @@ message WebMessageInfo {
     optional KeepInChat keepInChat = 50;
     optional string originalSelfAuthorUserJidString = 51;
     optional uint64 revokeMessageTimestamp = 52;
+    optional PinInChat pinInChat = 54;
     enum BizPrivacyStatus {
         E2EE = 0;
         FB = 2;
@@ -2636,6 +2708,8 @@ message WebMessageInfo {
         COMMUNITY_CHANGE_DESCRIPTION = 173;
         SENDER_INVITE = 174;
         RECEIVER_INVITE = 175;
+        COMMUNITY_ALLOW_MEMBER_ADDED_GROUPS = 176;
+        PINNED_MESSAGE_IN_CHAT = 177;
     }
 }
 
