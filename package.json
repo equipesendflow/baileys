@@ -43,7 +43,7 @@
     "node-cache": "^5.1.2",
     "pino": "^8.10.0",
     "protobufjs": "^7.2.2",
-    "ws": "^8.12.1"
+    "ws": "^8.13.0"
   },
   "peerDependencies": {
     "@adiwajshing/keyed-db": "^0.2.4",
