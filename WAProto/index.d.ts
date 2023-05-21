@@ -2328,6 +2328,9 @@ export namespace proto {
 
             /** UserAgent deviceBoard */
             deviceBoard?: (string|null);
+
+            /** UserAgent deviceExpId */
+            deviceExpId?: (string|null);
         }
 
         /** Represents a UserAgent. */
@@ -2377,6 +2380,9 @@ export namespace proto {
 
             /** UserAgent deviceBoard. */
             public deviceBoard: string;
+
+            /** UserAgent deviceExpId. */
+            public deviceExpId: string;
 
             /**
              * Creates a new UserAgent instance using the specified properties.
@@ -4547,7 +4553,10 @@ export namespace proto {
             IOS_PHONE = 14,
             IOS_CATALYST = 15,
             ANDROID_PHONE = 16,
-            ANDROID_AMBIGUOUS = 17
+            ANDROID_AMBIGUOUS = 17,
+            WEAR_OS = 18,
+            AR_WRIST = 19,
+            AR_DEVICE = 20
         }
     }
 
