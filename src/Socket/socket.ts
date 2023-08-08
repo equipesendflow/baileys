@@ -567,7 +567,7 @@ export const makeSocket = ({
 
 		const { reason, statusCode } = getErrorCodeFromStreamError(node)
 
-		end(new Boom(`Stream Errored (${reason})`, { statusCode, data: node }))
+		end(new Boom(`Stream Errored (${reason}, ${statusCode})`, { statusCode, data: node }))
 	})
 	// stream fail, possible logout
 	ws.on('CB:failure', (node: BinaryNode) => {

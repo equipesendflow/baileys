@@ -309,7 +309,7 @@ const CODE_MAP: { [_: string]: DisconnectReason } = {
  */
 export const getErrorCodeFromStreamError = (node: BinaryNode) => {
 	const [reasonNode] = getAllBinaryNodeChildren(node)
-	let reason = reasonNode?.tag || 'unknown'
+	let reason = reasonNode?.tag || node?.tag || 'unknown'
 	const statusCode = +(node.attrs.code || CODE_MAP[reason] || DisconnectReason.badSession)
 
 	if(statusCode === DisconnectReason.restartRequired) {
