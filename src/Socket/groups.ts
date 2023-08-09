@@ -1,5 +1,5 @@
 import { proto } from '../../WAProto'
-import { GroupMetadata, GroupParticipant, ParticipantAction, SocketConfig, WAMessageKey, WAMessageStubType } from '../Types'
+import { Community, GroupMetadata, GroupParticipant, ParticipantAction, SocketConfig, WAMessageKey, WAMessageStubType } from '../Types'
 import { generateMessageID, unixTimestampSeconds } from '../Utils'
 import { BinaryNode, getBinaryNodeChild, getBinaryNodeChildren, getBinaryNodeChildString, jidEncode, jidNormalizedUser } from '../WABinary'
 import { makeChatsSocket } from './chats'
@@ -253,11 +253,25 @@ export const makeGroupsSocket = (config: SocketConfig) => {
 export const extractGroupMetadata = (result: BinaryNode) => {
 	const group = getBinaryNodeChild(result, 'group')!
 	const descChild = getBinaryNodeChild(group, 'description')
+	const isCommunity = !!(getBinaryNodeChild(group, 'parent') || getBinaryNodeChild(group, 'linked_parent'))
 	let desc: string | undefined
 	let descId: string | undefined
+	let community: Community | undefined
+
 	if(descChild) {
 		desc = getBinaryNodeChildString(descChild, 'body')
 		descId = descChild.attrs.id
+	}
+
+	if(isCommunity) {
+		community = {
+			parent: !!getBinaryNodeChild(group, 'parent'),
+			incognito: !!getBinaryNodeChild(group, 'incognito'),
+			allowNonAdminSubGroupCreation: !!getBinaryNodeChild(group, 'allow_non_admin_sub_group_creation'),
+			membershipApprovalMode: getBinaryNodeChild(group, 'parent')?.attrs?.default_membership_approval_mode,
+			linkedParentId: getBinaryNodeChild(group, 'linked_parent')?.attrs?.jid,
+			default: !!getBinaryNodeChild(group, 'default_sub_group'),
+		}
 	}
 
 	const groupId = group.attrs.id.includes('@') ? group.attrs.id : jidEncode(group.attrs.id, 'g.us')
@@ -272,6 +286,8 @@ export const extractGroupMetadata = (result: BinaryNode) => {
 		owner: group.attrs.creator ? jidNormalizedUser(group.attrs.creator) : undefined,
 		desc,
 		descId,
+		community,
+		memberAddMode: getBinaryNodeChildString(group, 'member_add_mode'),
 		restrict: !!getBinaryNodeChild(group, 'locked'),
 		announce: !!getBinaryNodeChild(group, 'announcement'),
 		participants: getBinaryNodeChildren(group, 'participant').map(
@@ -279,6 +295,7 @@ export const extractGroupMetadata = (result: BinaryNode) => {
 				return {
 					id: attrs.jid,
 					admin: (attrs.type || null) as GroupParticipant['admin'],
+					lid: attrs.lid,
 				}
 			}
 		),
