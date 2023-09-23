@@ -1,6 +1,6 @@
 import { Boom } from '@hapi/boom'
 import axios, { AxiosRequestConfig } from 'axios'
-import { randomBytes } from 'crypto'
+import { createHash, randomBytes } from 'crypto'
 import { platform, release } from 'os'
 import { Logger } from 'pino'
 import { proto } from '../../WAProto'
@@ -169,6 +169,22 @@ export async function promiseTimeout<T>(ms: number | undefined, promise: (resolv
 	return p as Promise<T>
 }
 
+export function generateMessageIDV2(ownID: string): string {
+	const data: Buffer = Buffer.alloc(28)
+	data.writeUIntBE(Math.floor(Date.now() / 1000), 0, 6)
+	if(!isEmpty(ownID)) {
+	  data.write(ownID.split('@')[0] + '@c.us', 8, 'utf-8')
+	}
+
+	data.write(randomBytes(16).toString('hex'), 22, 'hex')
+	const hash: Buffer = createHash('sha256').update(data).digest()
+	return '3EB0' + hash.slice(0, 9).toString('hex').toUpperCase()
+}
+
+function isEmpty(value: string): boolean {
+	return !value || value.trim() === ''
+}
+
 // generate a random ID to attach to a message
 export const generateMessageID = () => '3EB0' + randomBytes(8).toString('hex').toUpperCase()
 
@@ -278,7 +294,10 @@ export const fetchLatestWaWebVersion = async(options: AxiosRequestConfig<any>) =
 /** unique message tag prefix for MD clients */
 export const generateMdTagPrefix = () => {
 	const bytes = randomBytes(4)
-	return `${bytes.readUInt16BE()}.${bytes.readUInt16BE(2)}-`
+	const secondBytes = randomBytes(4)
+	return `${bytes.readUInt16BE()}.${secondBytes.readUInt16BE()}-`
+	// const bytes = randomBytes(4)
+	// return `${bytes.readUInt16BE()}.${bytes.readUInt16BE(2)}-`
 }
 
 const STATUS_MAP: { [_: string]: proto.WebMessageInfo.Status } = {

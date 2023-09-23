@@ -53,6 +53,43 @@ export const makeGroupsSocket = (config: SocketConfig) => {
 			)
 			return extractGroupMetadata(result)
 		},
+		communityCreate: async(subject: string) => {
+			// const key = generateMessageIDV2(sock.user?.id || '')
+
+			const result = await groupQuery(
+				'g.us',
+				'set',
+				[
+					{
+						tag: 'create',
+						attrs: {
+							subject,
+							// key: key.replace('3EB0', '')
+						},
+						content: [
+							{
+								tag: 'parent',
+								attrs: {
+									'default_membership_approval_mode': 'request_required'
+								}
+							},
+							{
+								tag: 'allow_non_admin_sub_group_creation',
+								attrs: {}
+							},
+							{
+								tag: 'create_general_chat',
+								attrs: {}
+							}
+						  ]
+					}
+				]
+			)
+
+			console.log(result)
+
+			// return extractGroupMetadata(result)
+		},
 		groupLeave: async(id: string) => {
 			await groupQuery(
 				'@g.us',
