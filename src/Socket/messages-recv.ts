@@ -222,7 +222,7 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 		case 'not_ephemeral':
 			msg.message = {
 				protocolMessage: {
-					type: proto.Message.ProtocolMessage.Type.EPHEMERAL_SETTING,
+					type: proto.ProtocolMessage.Type.EPHEMERAL_SETTING,
 					ephemeralExpiration: +(child.attrs.expiration || 0)
 				}
 			}

@@ -51,14 +51,14 @@ const MIMETYPE_MAP: { [T in MediaType]?: string } = {
 }
 
 const MessageTypeProto = {
-	'image': WAProto.Message.ImageMessage,
-	'video': WAProto.Message.VideoMessage,
-	'audio': WAProto.Message.AudioMessage,
-	'sticker': WAProto.Message.StickerMessage,
-   	'document': WAProto.Message.DocumentMessage,
+	'image': WAProto.ImageMessage,
+	'video': WAProto.VideoMessage,
+	'audio': WAProto.AudioMessage,
+	'sticker': WAProto.StickerMessage,
+   	'document': WAProto.DocumentMessage,
 } as const
 
-const ButtonType = proto.Message.ButtonsMessage.HeaderType
+const ButtonType = proto.ButtonsMessage.HeaderType
 
 /**
  * Uses a regex to test whether the string contains a URL, and returns the URL if it does.
@@ -239,7 +239,7 @@ export const prepareDisappearingMessageSettingContent = (ephemeralExpiration?: n
 		ephemeralMessage: {
 			message: {
 				protocolMessage: {
-					type: WAProto.Message.ProtocolMessage.Type.EPHEMERAL_SETTING,
+					type: WAProto.ProtocolMessage.Type.EPHEMERAL_SETTING,
 					ephemeralExpiration
 				}
 			}
@@ -327,22 +327,22 @@ export const generateWAMessageContent = async(
 		}
 
 		if(contactLen === 1) {
-			m.contactMessage = WAProto.Message.ContactMessage.fromObject(message.contacts.contacts[0])
+			m.contactMessage = WAProto.ContactMessage.fromObject(message.contacts.contacts[0])
 		} else {
-			m.contactsArrayMessage = WAProto.Message.ContactsArrayMessage.fromObject(message.contacts)
+			m.contactsArrayMessage = WAProto.ContactsArrayMessage.fromObject(message.contacts)
 		}
 	} else if('location' in message) {
-		m.locationMessage = WAProto.Message.LocationMessage.fromObject(message.location)
+		m.locationMessage = WAProto.LocationMessage.fromObject(message.location)
 	} else if('react' in message) {
 		if(!message.react.senderTimestampMs) {
 			message.react.senderTimestampMs = Date.now()
 		}
 
-		m.reactionMessage = WAProto.Message.ReactionMessage.fromObject(message.react)
+		m.reactionMessage = WAProto.ReactionMessage.fromObject(message.react)
 	} else if('delete' in message) {
 		m.protocolMessage = {
 			key: message.delete,
-			type: WAProto.Message.ProtocolMessage.Type.REVOKE
+			type: WAProto.ProtocolMessage.Type.REVOKE
 		}
 	} else if('forward' in message) {
 		m = generateForwardMessageContent(
@@ -367,7 +367,7 @@ export const generateWAMessageContent = async(
 			m.buttonsResponseMessage = {
 				selectedButtonId: message.buttonReply.id,
 				selectedDisplayText: message.buttonReply.displayText,
-				type: proto.Message.ButtonsResponseMessage.Type.DISPLAY_TEXT,
+				type: proto.ButtonsResponseMessage.Type.DISPLAY_TEXT,
 			}
 			break
 		}
@@ -376,7 +376,7 @@ export const generateWAMessageContent = async(
 			{ image: message.product.productImage },
 			options
 		)
-		m.productMessage = WAProto.Message.ProductMessage.fromObject({
+		m.productMessage = WAProto.ProductMessage.fromObject({
 			...message,
 			product: {
 				...message.product,
@@ -420,8 +420,8 @@ export const generateWAMessageContent = async(
 	}
 
 	if('buttons' in message && !!message.buttons) {
-		const buttonsMessage: proto.Message.IButtonsMessage = {
-			buttons: message.buttons!.map(b => ({ ...b, type: proto.Message.ButtonsMessage.Button.Type.RESPONSE }))
+		const buttonsMessage: proto.IButtonsMessage = {
+			buttons: message.buttons!.map(b => ({ ...b, type: proto.ButtonsMessage.Button.Type.RESPONSE }))
 		}
 		if('text' in message) {
 			buttonsMessage.contentText = message.text
@@ -443,7 +443,7 @@ export const generateWAMessageContent = async(
 
 		m = { buttonsMessage }
 	} else if('templateButtons' in message && !!message.templateButtons) {
-		const msg: proto.Message.TemplateMessage.IHydratedFourRowTemplate = {
+		const msg: proto.TemplateMessage.IHydratedFourRowTemplate = {
 			hydratedButtons: message.templateButtons
 		}
 
@@ -471,13 +471,13 @@ export const generateWAMessageContent = async(
 	}
 
 	if('sections' in message && !!message.sections) {
-		const listMessage: proto.Message.IListMessage = {
+		const listMessage: proto.IListMessage = {
 			sections: message.sections,
 			buttonText: message.buttonText,
 			title: message.title,
 			footerText: message.footer,
 			description: message.text,
-			listType: proto.Message.ListMessage.ListType.SINGLE_SELECT
+			listType: proto.ListMessage.ListType.SINGLE_SELECT
 		}
 
 		m = { listMessage }
@@ -640,7 +640,7 @@ export const normalizeMessageContent = (content: WAMessageContent | null | undef
  * Eg. extracts the inner message from a disappearing message/view once message
  */
 export const extractMessageContent = (content: WAMessageContent | undefined | null): WAMessageContent | undefined => {
-	const extractFromTemplateMessage = (msg: proto.Message.TemplateMessage.IHydratedFourRowTemplate | proto.Message.IButtonsMessage) => {
+	const extractFromTemplateMessage = (msg: proto.TemplateMessage.IHydratedFourRowTemplate | proto.IButtonsMessage) => {
 		if(msg.imageMessage) {
 			return { imageMessage: msg.imageMessage }
 		} else if(msg.documentMessage) {

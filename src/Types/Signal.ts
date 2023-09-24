@@ -7,7 +7,7 @@ type DecryptGroupSignalOpts = {
 }
 
 type ProcessSenderKeyDistributionMessageOpts = {
-	item: proto.Message.ISenderKeyDistributionMessage
+	item: proto.ISenderKeyDistributionMessage
 	authorJid: string
 }
 

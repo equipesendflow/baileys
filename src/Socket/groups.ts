@@ -53,7 +53,8 @@ export const makeGroupsSocket = (config: SocketConfig) => {
 			)
 			return extractGroupMetadata(result)
 		},
-		communityCreate: async(subject: string) => {
+		communityCreate: async(subject: string, participants: string[]) => {
+			const key = generateMessageID()
 			// const key = generateMessageIDV2(sock.user?.id || '')
 
 			const result = await groupQuery(
@@ -64,7 +65,7 @@ export const makeGroupsSocket = (config: SocketConfig) => {
 						tag: 'create',
 						attrs: {
 							subject,
-							// key: key.replace('3EB0', '')
+							key: key
 						},
 						content: [
 							{
@@ -80,7 +81,11 @@ export const makeGroupsSocket = (config: SocketConfig) => {
 							{
 								tag: 'create_general_chat',
 								attrs: {}
-							}
+							},
+							// ...participants.map(jid => ({
+							// 	tag: 'participant',
+							// 	attrs: { jid }
+							// }))
 						  ]
 					}
 				]
@@ -88,7 +93,7 @@ export const makeGroupsSocket = (config: SocketConfig) => {
 
 			console.log(result)
 
-			// return extractGroupMetadata(result)
+			return extractGroupMetadata(result)
 		},
 		groupLeave: async(id: string) => {
 			await groupQuery(
@@ -184,7 +189,7 @@ export const makeGroupsSocket = (config: SocketConfig) => {
 		 * @param key the key of the invite message, or optionally only provide the jid of the person who sent the invite
 		 * @param inviteMessage the message to accept
 		 */
-		groupAcceptInviteV4: ev.createBufferedFunction(async(key: string | WAMessageKey, inviteMessage: proto.Message.IGroupInviteMessage) => {
+		groupAcceptInviteV4: ev.createBufferedFunction(async(key: string | WAMessageKey, inviteMessage: proto.IGroupInviteMessage) => {
 			key = typeof key === 'string' ? { remoteJid: key } : key
 			const results = await groupQuery(inviteMessage.groupJid!, 'set', [{
 				tag: 'accept',
@@ -199,7 +204,7 @@ export const makeGroupsSocket = (config: SocketConfig) => {
 			// update the invite message to be expired
 			if(key.id) {
 				// create new invite message that is expired
-				inviteMessage = proto.Message.GroupInviteMessage.fromObject(inviteMessage)
+				inviteMessage = proto.GroupInviteMessage.fromObject(inviteMessage)
 				inviteMessage.inviteExpiration = 0
 				inviteMessage.inviteCode = ''
 				ev.emit('messages.update', [

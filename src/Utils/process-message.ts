@@ -118,7 +118,7 @@ type PollContext = {
  * @returns list of SHA256 options
  */
 export function decryptPollVote(
-	{ encPayload, encIv }: proto.Message.IPollEncValue,
+	{ encPayload, encIv }: proto.IPollEncValue,
 	{
 		pollCreatorJid,
 		pollMsgId,
@@ -141,7 +141,7 @@ export function decryptPollVote(
 	const aad = toBinary(`${pollMsgId}\u0000${voterJid}`)
 
 	const decrypted = aesDecryptGCM(encPayload!, decKey, encIv!, aad)
-	return proto.Message.PollVoteMessage.decode(decrypted)
+	return proto.PollVoteMessage.decode(decrypted)
 
 	function toBinary(txt: string) {
 		return Buffer.from(txt)
@@ -189,7 +189,7 @@ const processMessage = async(
 	const protocolMsg = content?.protocolMessage
 	if(protocolMsg) {
 		switch (protocolMsg.type) {
-		case proto.Message.ProtocolMessage.Type.HISTORY_SYNC_NOTIFICATION:
+		case proto.ProtocolMessage.Type.HISTORY_SYNC_NOTIFICATION:
 			const histNotification = protocolMsg!.historySyncNotification!
 			const process = shouldProcessHistoryMsg
 			const isLatest = !creds.processedHistoryMessages?.length
@@ -218,7 +218,7 @@ const processMessage = async(
 			}
 
 			break
-		case proto.Message.ProtocolMessage.Type.APP_STATE_SYNC_KEY_SHARE:
+		case proto.ProtocolMessage.Type.APP_STATE_SYNC_KEY_SHARE:
 			const keys = protocolMsg.appStateSyncKeyShare!.keys
 			if(keys?.length) {
 				let newAppStateSyncKeyId = ''
@@ -247,7 +247,7 @@ const processMessage = async(
 			}
 
 			break
-		case proto.Message.ProtocolMessage.Type.REVOKE:
+		case proto.ProtocolMessage.Type.REVOKE:
 			ev.emit('messages.update', [
 				{
 					key: {
@@ -258,7 +258,7 @@ const processMessage = async(
 				}
 			])
 			break
-		case proto.Message.ProtocolMessage.Type.EPHEMERAL_SETTING:
+		case proto.ProtocolMessage.Type.EPHEMERAL_SETTING:
 			Object.assign(chat, {
 				ephemeralSettingTimestamp: toNumber(message.messageTimestamp),
 				ephemeralExpiration: protocolMsg.ephemeralExpiration || null

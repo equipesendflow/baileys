@@ -56,7 +56,7 @@ export type ChatUpdate = Partial<Chat & {
  * the last messages in a chat, sorted reverse-chronologically. That is, the latest message should be first in the chat
  * for MD modifications, the last message in the array (i.e. the earlist message) must be the last message recv in the chat
  * */
-export type LastMessageList = MinimalMessage[] | proto.SyncActionValue.ISyncActionMessageRange
+export type LastMessageList = MinimalMessage[] | proto.ISyncActionMessageRange
 
 export type ChatModification =
     {

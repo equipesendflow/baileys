@@ -9,7 +9,7 @@ import { toNumber } from './generics'
 import { LT_HASH_ANTI_TAMPERING } from './lt-hash'
 import { downloadContentFromMessage, } from './messages-media'
 
-type FetchAppStateSyncKey = (keyId: string) => Promise<proto.Message.IAppStateSyncKeyData | null | undefined>
+type FetchAppStateSyncKey = (keyId: string) => Promise<proto.IAppStateSyncKeyData | null | undefined>
 
 export type ChatMutationMap = { [index: string]: ChatMutation }
 
@@ -478,7 +478,7 @@ export const chatModificationToAppPatch = (
 ) => {
 	const OP = proto.SyncdMutation.SyncdOperation
 	const getMessageRange = (lastMessages: LastMessageList) => {
-		let messageRange: proto.SyncActionValue.ISyncActionMessageRange
+		let messageRange: proto.ISyncActionMessageRange
 		if(Array.isArray(lastMessages)) {
 			const lastMsg = lastMessages[lastMessages.length - 1]
 			messageRange = {
@@ -735,7 +735,7 @@ export const processSyncAction = (
 		logger?.trace({ syncAction, id }, 'unprocessable update')
 	}
 
-	function getChatUpdateConditional(id: string, msgRange: proto.SyncActionValue.ISyncActionMessageRange | null | undefined): ChatUpdate['conditional'] {
+	function getChatUpdateConditional(id: string, msgRange: proto.ISyncActionMessageRange | null | undefined): ChatUpdate['conditional'] {
 		return isInitialSync
 			? (data) => {
 				const chat = data.historySets.chats[id] || data.chatUpserts[id]
@@ -746,8 +746,8 @@ export const processSyncAction = (
 			: undefined
 	}
 
-	function isValidPatchBasedOnMessageRange(chat: Chat, msgRange: proto.SyncActionValue.ISyncActionMessageRange | null | undefined) {
-		const lastMsgTimestamp = msgRange?.lastMessageTimestamp || msgRange?.lastSystemMessageTimestamp || 0
+	function isValidPatchBasedOnMessageRange(chat: Chat, msgRange: proto.ISyncActionMessageRange | null | undefined) {
+		const lastMsgTimestamp = toNumber(msgRange?.lastMessageTimestamp || msgRange?.lastSystemMessageTimestamp || 0)
 		const chatLastMsgTimestamp = chat?.lastMessageRecvTimestamp || 0
 		return lastMsgTimestamp >= chatLastMsgTimestamp
 	}

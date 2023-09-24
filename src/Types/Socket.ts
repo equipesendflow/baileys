@@ -54,7 +54,7 @@ export type SocketConfig = {
     /** provide an auth state object to maintain the auth state */
     auth: AuthenticationState
     /** manage history processing with this control; by default will sync up everything */
-    shouldSyncHistoryMessage: (msg: proto.Message.IHistorySyncNotification) => boolean
+    shouldSyncHistoryMessage: (msg: proto.IHistorySyncNotification) => boolean
     /** transaction capability options for SignalKeyStore */
     transactionOpts: TransactionCapabilityOptions
     /** marks the client as online whenever the socket successfully connects */

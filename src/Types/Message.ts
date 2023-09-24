@@ -11,13 +11,13 @@ import { CacheStore } from './Socket'
 export { proto as WAProto }
 export type WAMessage = proto.IWebMessageInfo
 export type WAMessageContent = proto.IMessage
-export type WAContactMessage = proto.Message.IContactMessage
-export type WAContactsArrayMessage = proto.Message.IContactsArrayMessage
+export type WAContactMessage = proto.IContactMessage
+export type WAContactsArrayMessage = proto.IContactsArrayMessage
 export type WAMessageKey = proto.IMessageKey
-export type WATextMessage = proto.Message.IExtendedTextMessage
+export type WATextMessage = proto.IExtendedTextMessage
 export type WAContextInfo = proto.IContextInfo
-export type WALocationMessage = proto.Message.ILocationMessage
-export type WAGenericMediaMessage = proto.Message.IVideoMessage | proto.Message.IImageMessage | proto.Message.IAudioMessage | proto.Message.IDocumentMessage | proto.Message.IStickerMessage
+export type WALocationMessage = proto.ILocationMessage
+export type WAGenericMediaMessage = proto.IVideoMessage | proto.IImageMessage | proto.IAudioMessage | proto.IDocumentMessage | proto.IStickerMessage
 // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
 export import WAMessageStubType = proto.WebMessageInfo.StubType
 // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
@@ -43,7 +43,7 @@ export interface WAUrlInfo {
     title: string
     description?: string
     jpegThumbnail?: Buffer
-    highQualityThumbnail?: proto.Message.IImageMessage
+    highQualityThumbnail?: proto.IImageMessage
     originalThumbnailUrl?: string
 }
 
@@ -57,7 +57,7 @@ type ViewOnce = {
 }
 type Buttonable = {
     /** add buttons to the message  */
-    buttons?: proto.Message.ButtonsMessage.IButton[]
+    buttons?: proto.ButtonsMessage.IButton[]
 }
 type Templatable = {
     /** add buttons to the message (conflicts with normal buttons)*/
@@ -67,7 +67,7 @@ type Templatable = {
 }
 type Listable = {
     /** Sections of the List */
-    sections?: proto.Message.ListMessage.ISection[]
+    sections?: proto.ListMessage.ISection[]
 
     /** Title of a List Message only */
     title?: string
@@ -125,7 +125,7 @@ export type ButtonReplyInfo = {
     index: number
 }
 
-export type WASendableProduct = Omit<proto.Message.ProductMessage.IProductSnapshot, 'productImage'> & {
+export type WASendableProduct = Omit<proto.ProductMessage.IProductSnapshot, 'productImage'> & {
     productImage: WAMediaUpload
 }
 
@@ -142,19 +142,19 @@ export type AnyRegularMessageContent = (
     | {
         contacts: {
             displayName?: string
-            contacts: proto.Message.IContactMessage[]
+            contacts: proto.IContactMessage[]
         }
     }
     | {
         location: WALocationMessage
     }
-    | { react: proto.Message.IReactionMessage }
+    | { react: proto.IReactionMessage }
     | {
         buttonReply: ButtonReplyInfo
         type: 'template' | 'plain'
     }
     | {
-        listReply: Omit<proto.Message.IListResponseMessage, 'contextInfo'>
+        listReply: Omit<proto.IListResponseMessage, 'contextInfo'>
     }
     | {
         product: WASendableProduct

@@ -11,7 +11,7 @@ import { downloadContentFromMessage } from './messages-media'
 const inflatePromise = promisify(inflate)
 
 export const downloadHistory = async(
-	msg: proto.Message.IHistorySyncNotification,
+	msg: proto.IHistorySyncNotification,
 	options: AxiosRequestConfig<any>
 ) => {
 	const stream = await downloadContentFromMessage(msg, 'md-msg-hist', { options })
@@ -97,7 +97,7 @@ export const processHistoryMessage = (item: proto.IHistorySync) => {
 }
 
 export const downloadAndProcessHistorySyncNotification = async(
-	msg: proto.Message.IHistorySyncNotification,
+	msg: proto.IHistorySyncNotification,
 	options: AxiosRequestConfig<any>
 ) => {
 	const historyMsg = await downloadHistory(msg, options)
