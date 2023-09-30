@@ -75,46 +75,10 @@ export const makeGroupsSocket = (config: SocketConfig) => {
 				]
 			)
 
-			console.log(JSON.stringify(result, null, 2))
-
 			return extractGroupMetadata(result)
 		},
 		communityGetSubGroups: async(jid: string) => {
 			const result = await groupQuery(jid, 'get', [{ tag: 'sub_groups', attrs: {} }])
-
-			console.log(JSON.stringify(result, null, 2))
-
-			// {
-// 	"tag": "iq",
-// 	"attrs": {
-// 	  "from": "120363181831744835@g.us",
-// 	  "type": "result",
-// 	  "id": "41780.30649-14"
-// 	},
-// 	"content": [
-// 	  {
-// 		"tag": "sub_groups",
-// 		"attrs": {},
-// 		"content": [
-// 		  {
-// 			"tag": "group",
-// 			"attrs": {
-// 			  "id": "120363183132112052",
-// 			  "subject": "Mitsubishi #10",
-// 			  "s_t": "1696079723",
-// 			  "size": "1"
-// 			},
-// 			"content": [
-// 			  {
-// 				"tag": "default_sub_group",
-// 				"attrs": {}
-// 			  }
-// 			]
-// 		  }
-// 		]
-// 	  }
-// 	]
-//   }
 
 			const subGroups = getBinaryNodeChild(result, 'sub_groups')
 
@@ -122,7 +86,7 @@ export const makeGroupsSocket = (config: SocketConfig) => {
 
 			return subGroupsGroups.map(group => {
 				return {
-					id: group.attrs.id,
+					id: group.attrs.id + '@g.us',
 					subject: group.attrs.subject,
 					subjectTime: group.attrs.s_t,
 					size: group.attrs.size,
@@ -163,27 +127,6 @@ export const makeGroupsSocket = (config: SocketConfig) => {
 			participants: string[],
 			action: ParticipantAction
 		) => {
-			// "content": [
-			// 	{
-			// 	  "tag": "add",
-			// 	  "attrs": {},
-			// 	  "content": [
-			// 		{
-			// 		  "tag": "participant",
-			// 		  "attrs": {
-			// 			"jid": {
-			// 			  "_jid": {
-			// 				"type": 0,
-			// 				"user": "5522981274455",
-			// 				"server": "s.whatsapp.net"
-			// 			  }
-			// 			}
-			// 		  },
-			// 		  "content": null
-			// 		}
-			// 	  ]
-			// 	}
-			//   ]
 			const result = await groupQuery(
 				jid,
 				'set',
