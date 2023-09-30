@@ -53,10 +53,7 @@ export const makeGroupsSocket = (config: SocketConfig) => {
 			)
 			return extractGroupMetadata(result)
 		},
-		communityCreate: async(subject: string, participants: string[]) => {
-			const key = generateMessageID()
-			// const key = generateMessageIDV2(sock.user?.id || '')
-
+		communityCreate: async(subject: string) => {
 			const result = await groupQuery(
 				'g.us',
 				'set',
@@ -65,7 +62,6 @@ export const makeGroupsSocket = (config: SocketConfig) => {
 						tag: 'create',
 						attrs: {
 							subject,
-							key: key
 						},
 						content: [
 							{
@@ -74,26 +70,65 @@ export const makeGroupsSocket = (config: SocketConfig) => {
 									'default_membership_approval_mode': 'request_required'
 								}
 							},
-							{
-								tag: 'allow_non_admin_sub_group_creation',
-								attrs: {}
-							},
-							{
-								tag: 'create_general_chat',
-								attrs: {}
-							},
-							// ...participants.map(jid => ({
-							// 	tag: 'participant',
-							// 	attrs: { jid }
-							// }))
 						  ]
 					}
 				]
 			)
 
-			console.log(result)
+			console.log(JSON.stringify(result, null, 2))
 
 			return extractGroupMetadata(result)
+		},
+		communityGetSubGroups: async(jid: string) => {
+			const result = await groupQuery(jid, 'get', [{ tag: 'sub_groups', attrs: {} }])
+
+			console.log(JSON.stringify(result, null, 2))
+
+			// {
+// 	"tag": "iq",
+// 	"attrs": {
+// 	  "from": "120363181831744835@g.us",
+// 	  "type": "result",
+// 	  "id": "41780.30649-14"
+// 	},
+// 	"content": [
+// 	  {
+// 		"tag": "sub_groups",
+// 		"attrs": {},
+// 		"content": [
+// 		  {
+// 			"tag": "group",
+// 			"attrs": {
+// 			  "id": "120363183132112052",
+// 			  "subject": "Mitsubishi #10",
+// 			  "s_t": "1696079723",
+// 			  "size": "1"
+// 			},
+// 			"content": [
+// 			  {
+// 				"tag": "default_sub_group",
+// 				"attrs": {}
+// 			  }
+// 			]
+// 		  }
+// 		]
+// 	  }
+// 	]
+//   }
+
+			const subGroups = getBinaryNodeChild(result, 'sub_groups')
+
+			const subGroupsGroups = getBinaryNodeChildren(subGroups, 'group')
+
+			return subGroupsGroups.map(group => {
+				return {
+					id: group.attrs.id,
+					subject: group.attrs.subject,
+					subjectTime: group.attrs.s_t,
+					size: group.attrs.size,
+					default: !!getBinaryNodeChild(group, 'default_sub_group'),
+				}
+			})
 		},
 		groupLeave: async(id: string) => {
 			await groupQuery(
@@ -128,13 +163,34 @@ export const makeGroupsSocket = (config: SocketConfig) => {
 			participants: string[],
 			action: ParticipantAction
 		) => {
+			// "content": [
+			// 	{
+			// 	  "tag": "add",
+			// 	  "attrs": {},
+			// 	  "content": [
+			// 		{
+			// 		  "tag": "participant",
+			// 		  "attrs": {
+			// 			"jid": {
+			// 			  "_jid": {
+			// 				"type": 0,
+			// 				"user": "5522981274455",
+			// 				"server": "s.whatsapp.net"
+			// 			  }
+			// 			}
+			// 		  },
+			// 		  "content": null
+			// 		}
+			// 	  ]
+			// 	}
+			//   ]
 			const result = await groupQuery(
 				jid,
 				'set',
 				[
 					{
 						tag: action,
-						attrs: { },
+						attrs: {},
 						content: participants.map(jid => ({
 							tag: 'participant',
 							attrs: { jid }
