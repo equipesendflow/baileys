@@ -64,7 +64,8 @@ export function decodeMessageNode(
 		chatId = from
 		author = participant
 	} else {
-		throw new Boom('Unknown message type', { data: stanza })
+		// throw new Boom('Unknown message type', { data: stanza })
+		throw new Boom('Unknown message type')
 	}
 
 	const fromMe = isMe(stanza.attrs.participant || stanza.attrs.from)
