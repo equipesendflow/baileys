@@ -2,12 +2,12 @@ import { Boom } from '@hapi/boom'
 import { Logger } from 'pino'
 import { proto } from '../../WAProto'
 import { SignalRepository, WAMessageKey } from '../Types'
-import { areJidsSameUser, BinaryNode, isJidBroadcast, isJidGroup, isJidStatusBroadcast, isJidUser } from '../WABinary'
+import { areJidsSameUser, BinaryNode, isJidBroadcast, isJidGroup, isJidStatusBroadcast, isJidNewsletter, isJidUser } from '../WABinary'
 import { unpadRandomMax16 } from './generics'
 
 const NO_MESSAGE_FOUND_ERROR_TEXT = 'Message absent from node'
 
-type MessageType = 'chat' | 'peer_broadcast' | 'other_broadcast' | 'group' | 'direct_peer_status' | 'other_status'
+type MessageType = 'chat' | 'peer_broadcast' | 'other_broadcast' | 'group' | 'direct_peer_status' | 'other_status' | 'newsletter'
 
 /**
  * Decode the received node as a message.
@@ -63,6 +63,14 @@ export function decodeMessageNode(
 
 		chatId = from
 		author = participant
+	} else if(isJidNewsletter(from)) {
+		
+
+		
+
+		msgType = 'newsletter'
+		chatId = from
+		author = ''
 	} else {
 		// throw new Boom('Unknown message type', { data: stanza })
 		throw new Boom('Unknown message type')
@@ -103,6 +111,11 @@ export const decryptMessageNode = (
 	logger: Logger
 ) => {
 	const { fullMessage, author, sender } = decodeMessageNode(stanza, meId)
+
+	if (!author) {
+		return null;
+	}
+
 	return {
 		fullMessage,
 		category: stanza.attrs.category,

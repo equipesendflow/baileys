@@ -547,12 +547,19 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 	}
 
 	const handleMessage = async(node: BinaryNode) => {
-		const { fullMessage: msg, category, author, decrypt } = decryptMessageNode(
+		const decryptMessageData = decryptMessageNode(
 			node,
 			authState.creds.me!.id,
 			signalRepository,
 			logger,
 		)
+
+		if (!decryptMessageData) {
+			return;
+		}
+
+		const { fullMessage: msg, category, author, decrypt } = decryptMessageData;
+
 		if(shouldIgnoreJid(msg.key.remoteJid!)) {
 			logger.debug({ key: msg.key }, 'ignored message')
 			await sendMessageAck(node)
