@@ -379,7 +379,7 @@ export const makeChatsSocket = (config: SocketConfig) => {
 								states[name] = newState
 								Object.assign(globalMutationMap, mutationMap)
 
-								logger.info(`restored state of ${name} from snapshot to v${newState.version} with mutations`)
+								// logger.info(`restored state of ${name} from snapshot to v${newState.version} with mutations`)
 
 								await authState.keys.set({ 'app-state-sync-version': { [name]: newState } })
 							}
@@ -406,7 +406,7 @@ export const makeChatsSocket = (config: SocketConfig) => {
 							}
 
 							if(hasMorePatches) {
-								logger.info(`${name} has more patches...`)
+								// logger.info(`${name} has more patches...`)
 							} else { // collection is done with sync
 								collectionsToHandle.delete(name)
 							}
@@ -416,10 +416,10 @@ export const makeChatsSocket = (config: SocketConfig) => {
 							const isIrrecoverableError = attemptsMap[name]! >= MAX_SYNC_ATTEMPTS
 								|| error.output?.statusCode === 404
 								|| error.name === 'TypeError'
-							logger.info(
-								{ name, error: error.stack },
-								`failed to sync state from version${isIrrecoverableError ? '' : ', removing and trying from scratch'}`
-							)
+							// logger.info(
+							// 	{ name, error: error.stack },
+							// 	`failed to sync state from version${isIrrecoverableError ? '' : ', removing and trying from scratch'}`
+							// )
 							await authState.keys.set({ 'app-state-sync-version': { [name]: null } })
 							// increment number of retries
 							attemptsMap[name] = (attemptsMap[name] || 0) + 1
