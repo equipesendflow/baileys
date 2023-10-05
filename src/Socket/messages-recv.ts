@@ -2,13 +2,14 @@
 import NodeCache from 'node-cache'
 import { proto } from '../../WAProto'
 import { DEFAULT_CACHE_TTLS, KEY_BUNDLE_TYPE, MIN_PREKEY_COUNT } from '../Defaults'
-import { MessageReceiptType, MessageRelayOptions, MessageUserReceipt, SocketConfig, WACallEvent, WAMessageKey, WAMessageStatus, WAMessageStubType, WAPatchName } from '../Types'
+import { DisconnectReason, MessageReceiptType, MessageRelayOptions, MessageUserReceipt, SocketConfig, WACallEvent, WAMessageKey, WAMessageStatus, WAMessageStubType, WAPatchName } from '../Types'
 import { decodeMediaRetryNode, decryptMessageNode, delay, encodeBigEndian, encodeSignedDeviceIdentity, getCallStatusFromNode, getHistoryMsg, getNextPreKeys, getStatusFromReceiptType, unixTimestampSeconds, xmppPreKey, xmppSignedPreKey } from '../Utils'
 import { makeMutex } from '../Utils/make-mutex'
 import { cleanMessage } from '../Utils/process-message'
 import { areJidsSameUser, BinaryNode, getAllBinaryNodeChildren, getBinaryNodeChild, getBinaryNodeChildren, isJidGroup, isJidUser, jidDecode, jidNormalizedUser, S_WHATSAPP_NET } from '../WABinary'
 import { extractGroupMetadata } from './groups'
 import { makeMessagesSocket } from './messages-send'
+import { Boom } from '@hapi/boom'
 
 export const makeMessagesRecvSocket = (config: SocketConfig) => {
 	const {
@@ -498,13 +499,24 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 									logger.debug({ attrs, key }, 'recv retry request')
 									await sendMessagesAgain(key, ids, retryNode!)
 								} catch(error) {
-									logger.error({ key, ids, trace: error.stack }, 'error in sending message again')
+									let log = true;
+
+									if (error instanceof Boom ) {
+										const statusCode = +error.output?.statusCode;
+										if (statusCode === DisconnectReason.connectionClosed || statusCode === DisconnectReason.connectionLost) {
+											log = false;
+										}
+									}
+
+									if (log) {
+										logger.error({ key, ids, trace: error.stack }, 'error in sending message again')
+									}
 								}
 							} else {
-								logger.info({ attrs, key }, 'recv retry for not fromMe message')
+								// logger.info({ attrs, key }, 'recv retry for not fromMe message')
 							}
 						} else {
-							logger.info({ attrs, key }, 'will not send message again, as sent too many times')
+							// logger.info({ attrs, key }, 'will not send message again, as sent too many times')
 						}
 					}
 				}

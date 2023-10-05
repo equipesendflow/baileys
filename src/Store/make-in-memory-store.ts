@@ -86,14 +86,14 @@ export default (
 			}
 
 			const chatsAdded = chats.insertIfAbsent(...newChats).length
-			logger.debug({ chatsAdded }, 'synced chats')
+			// logger.debug({ chatsAdded }, 'synced chats')
 
 			const oldContacts = contactsUpsert(newContacts)
 			for(const jid of oldContacts) {
 				delete contacts[jid]
 			}
 
-			logger.debug({ deletedContacts: oldContacts.size, newContacts }, 'synced contacts')
+			// logger.debug({ deletedContacts: oldContacts.size, newContacts }, 'synced contacts')
 
 			for(const msg of newMessages) {
 				const jid = msg.key.remoteJid!
@@ -101,7 +101,7 @@ export default (
 				list.upsert(msg, 'prepend')
 			}
 
-			logger.debug({ messages: newMessages.length }, 'synced messages')
+			// logger.debug({ messages: newMessages.length }, 'synced messages')
 		})
 
 		ev.on('contacts.update', updates => {

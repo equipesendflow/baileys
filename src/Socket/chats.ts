@@ -399,7 +399,7 @@ export const makeChatsSocket = (config: SocketConfig) => {
 
 								await authState.keys.set({ 'app-state-sync-version': { [name]: newState } })
 
-								logger.info(`synced ${name} to v${newState.version}`)
+								// logger.info(`synced ${name} to v${newState.version}`)
 								initialVersionMap[name] = newState.version
 
 								Object.assign(globalMutationMap, mutationMap)
