@@ -94,10 +94,21 @@ export const makeSocket = ({
 
 	/** log & process any unexpected errors */
 	const onUnexpectedError = (err: Error | Boom, msg: string) => {
-		logger.error(
-			{ err },
-			`unexpected error in '${msg}'`
-		)
+		let log = true;
+
+		if (err instanceof Boom && err.output?.statusCode) {
+			const statusCode = +err.output.statusCode;
+			if (statusCode === DisconnectReason.connectionClosed || statusCode === DisconnectReason.connectionLost) {
+				log = false;
+			}
+		}
+
+		if (log) {
+			logger.error(
+				{ err },
+				`unexpected error in '${msg}'`
+			)
+		}
 	}
 
 	/** await the next incoming message */

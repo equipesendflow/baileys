@@ -501,8 +501,8 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 								} catch(error) {
 									let log = true;
 
-									if (error instanceof Boom ) {
-										const statusCode = +error.output?.statusCode;
+									if (error instanceof Boom && error.output?.statusCode) {
+										const statusCode = +error.output.statusCode;
 										if (statusCode === DisconnectReason.connectionClosed || statusCode === DisconnectReason.connectionLost) {
 											log = false;
 										}
