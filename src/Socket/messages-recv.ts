@@ -417,6 +417,9 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 					}
 				}
 
+				logger.info({ key }, 'recv retry request')
+
+
 				await relayMessage(key.remoteJid!, msg, msgRelayOpts)
 			} else {
 				logger.debug({ jid: key.remoteJid, id: ids[i] }, 'recv retry request, but message not available')
@@ -497,7 +500,7 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 						if(willSendMessageAgain(ids[0], key.participant)) {
 							// if(key.fromMe) {
 								try {
-									logger.info({ attrs, key }, 'recv retry request')
+									// logger.info({ attrs, key }, 'recv retry request')
 									await sendMessagesAgain(key, ids, retryNode!)
 								} catch(error) {
 									let log = true;
