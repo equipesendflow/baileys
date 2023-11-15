@@ -372,7 +372,7 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 	const willSendMessageAgain = (id: string, participant: string) => {
 		const key = `${id}:${participant}`
 		const retryCount = msgRetryCache.get<number>(key) || 0
-		return retryCount < 5
+		return retryCount < 10
 	}
 
 	const updateSendMessageAgainCount = (id: string, participant: string) => {
@@ -392,7 +392,8 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 		// if it's the primary jid sending the request
 		// just re-send the message to everyone
 		// prevents the first message decryption failure
-		const sendToAll = !jidDecode(participant)?.device
+		// const sendToAll = !jidDecode(participant)?.device
+		const sendToAll = false
 		await assertSessions([participant], true)
 
 		if(isJidGroup(remoteJid)) {
@@ -494,7 +495,7 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 						key.participant = key.participant || attrs.from
 						const retryNode = getBinaryNodeChild(node, 'retry')
 						if(willSendMessageAgain(ids[0], key.participant)) {
-							if(key.fromMe) {
+							// if(key.fromMe) {
 								try {
 									logger.debug({ attrs, key }, 'recv retry request')
 									await sendMessagesAgain(key, ids, retryNode!)
@@ -512,11 +513,11 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 										logger.error({ key, ids, trace: error.stack }, 'error in sending message again')
 									}
 								}
-							} else {
-								// logger.info({ attrs, key }, 'recv retry for not fromMe message')
-							}
+							// } else {
+							// 	logger.info({ attrs, key }, 'recv retry for not fromMe message')
+							// }
 						} else {
-							// logger.info({ attrs, key }, 'will not send message again, as sent too many times')
+							logger.info({ attrs, key }, 'will not send message again, as sent too many times')
 						}
 					}
 				}
