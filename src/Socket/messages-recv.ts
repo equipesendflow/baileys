@@ -419,9 +419,6 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 					}
 				}
 
-				logger.info({ key }, 'recv retry request')
-
-
 				await relayMessage(key.remoteJid!, msg, msgRelayOpts)
 			} else {
 				logger.debug({ jid: key.remoteJid, id: ids[i] }, 'recv retry request, but message not available')
@@ -500,9 +497,10 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 						key.participant = key.participant || attrs.from
 						const retryNode = getBinaryNodeChild(node, 'retry')
 						if(willSendMessageAgain(ids[0], key.participant)) {
-							// if(key.fromMe) {
+							if(key.fromMe) {
 								try {
-									// logger.info({ attrs, key }, 'recv retry request')
+									logger.info({ attrs }, 'recv retry request')
+									
 									await sendMessagesAgain(key, ids, retryNode!)
 								} catch(error) {
 									let log = true;
@@ -518,11 +516,11 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 										logger.error({ key, ids, trace: error.stack }, 'error in sending message again')
 									}
 								}
-							// } else {
-							// 	logger.info({ attrs, key }, 'recv retry for not fromMe message')
-							// }
+							} else {
+								// logger.info({ attrs, key }, 'recv retry for not fromMe message')
+							}
 						} else {
-							logger.info({ attrs, key }, 'will not send message again, as sent too many times')
+							logger.info({ attrs }, 'will not send message again, as sent too many times')
 						}
 					}
 				}
