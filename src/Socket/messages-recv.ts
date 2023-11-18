@@ -499,7 +499,7 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 						if(willSendMessageAgain(ids[0], key.participant)) {
 							if(key.fromMe) {
 								try {
-									logger.info({ attrs }, 'recv retry request')
+									// logger.info({ attrs }, 'recv retry request')
 									
 									await sendMessagesAgain(key, ids, retryNode!)
 								} catch(error) {
@@ -520,7 +520,7 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 								// logger.info({ attrs, key }, 'recv retry for not fromMe message')
 							}
 						} else {
-							logger.info({ attrs }, 'will not send message again, as sent too many times')
+							// logger.info({ attrs }, 'will not send message again, as sent too many times')
 						}
 					}
 				}
