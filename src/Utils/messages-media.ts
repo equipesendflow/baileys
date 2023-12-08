@@ -201,7 +201,7 @@ export async function getAudioDuration(buffer: Buffer | string | Readable) {
 		metadata = await musicMetadata.parseStream(buffer, undefined, { duration: true })
 	}
 
-	console.log('audio', JSON.stringify(metadata, null, 2))
+	// console.log('audio', JSON.stringify(metadata, null, 2))
 
 	return metadata.format.duration
 }

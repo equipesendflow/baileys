@@ -199,8 +199,8 @@ export const prepareWAMessageMedia = async(
 				if(requiresWaveformProcessing) {
 					uploadData.waveform = await getAudioWaveform(bodyPath!, logger)
 
-					console.log('waveform')
-					console.log(JSON.stringify(uploadData.waveform, null, 2))
+					// console.log('waveform')
+					// console.log(JSON.stringify(uploadData.waveform, null, 2))
 					logger?.debug('processed waveform')
 				}
 			} catch(error) {
