@@ -94,6 +94,11 @@ export const makeGroupsSocket = (config: SocketConfig) => {
 				}
 			})
 		},
+		communityDeactivate: async(jid: string) => {
+			const result = await groupQuery(jid, 'set', [{ tag: 'delete_parent', attrs: {} }])
+
+			return getBinaryNodeChild(result, 'delete')?.attrs.reason
+		},
 		groupLeave: async(id: string) => {
 			await groupQuery(
 				'@g.us',
