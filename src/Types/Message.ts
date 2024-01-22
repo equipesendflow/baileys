@@ -65,6 +65,13 @@ type Templatable = {
 
     footer?: string
 }
+type Editable = {
+    edit?: WAMessageKey
+}
+type Pinnable = {
+    pin?: WAMessageKey
+    messageAddOnDurationInSecs?: number
+}
 type Listable = {
     /** Sections of the List */
     sections?: proto.ListMessage.ISection[]
@@ -117,7 +124,7 @@ export type AnyMediaMessageContent = (
         fileName?: string
         caption?: string
     } & Buttonable & Templatable))
-    & { mimetype?: string }
+    & { mimetype?: string } & Editable & Pinnable
 
 export type ButtonReplyInfo = {
     displayText: string
@@ -134,11 +141,11 @@ export type AnyRegularMessageContent = (
 	    text: string
         linkPreview?: WAUrlInfo | null
     }
-    & Mentionable & Buttonable & Templatable & Listable)
+    & Mentionable & Buttonable & Templatable & Listable & Editable & Pinnable)
     | AnyMediaMessageContent
     | ({
         poll: PollMessageOptions
-    } & Mentionable & Buttonable & Templatable)
+    } & Mentionable & Buttonable & Templatable & Editable & Pinnable)
     | {
         contacts: {
             displayName?: string
