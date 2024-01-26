@@ -354,6 +354,23 @@ export const generateWAMessageContent = async(
 			key: message.delete,
 			type: WAProto.ProtocolMessage.Type.REVOKE
 		}
+	} else if('edit' in message) {
+		m.protocolMessage={
+			key: message.edit,
+			editedMessage: m,
+			timestampMs: Date.now(),
+			type: WAProto.ProtocolMessage.Type.MESSAGE_EDIT
+		}
+	} else if('pin' in message) {
+		m.pinInChatMessage = {
+			key: message.pin,
+			type: WAProto.PinInChatMessage.Type.UNPIN_FOR_ALL,
+			senderTimestampMs: Date.now()
+		}
+
+		m.messageContextInfo = {
+			messageAddOnDurationInSecs: message.messageAddOnDurationInSecs || 0,
+		}
 	} else if('forward' in message) {
 		m = generateForwardMessageContent(
 			message.forward,
