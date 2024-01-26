@@ -192,6 +192,10 @@ export const decryptMessageNode = (
 
 			// if nothing was found to decrypt
 			if(!decryptables) {
+				logger.error(
+					{ key: fullMessage.key, fullMessage },
+					'failed to decrypt message, no decryptables'
+				)
 				fullMessage.messageStubType = proto.WebMessageInfo.StubType.CIPHERTEXT
 				fullMessage.messageStubParameters = [NO_MESSAGE_FOUND_ERROR_TEXT]
 			}
