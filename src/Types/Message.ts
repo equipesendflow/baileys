@@ -68,10 +68,6 @@ type Templatable = {
 type Editable = {
     edit?: WAMessageKey
 }
-type Pinnable = {
-    pin?: WAMessageKey
-    messageAddOnDurationInSecs?: number
-}
 type Listable = {
     /** Sections of the List */
     sections?: proto.ListMessage.ISection[]
@@ -124,7 +120,7 @@ export type AnyMediaMessageContent = (
         fileName?: string
         caption?: string
     } & Buttonable & Templatable))
-    & { mimetype?: string } & Editable & Pinnable
+    & { mimetype?: string } & Editable
 
 export type ButtonReplyInfo = {
     displayText: string
@@ -141,11 +137,11 @@ export type AnyRegularMessageContent = (
 	    text: string
         linkPreview?: WAUrlInfo | null
     }
-    & Mentionable & Buttonable & Templatable & Listable & Editable & Pinnable)
+    & Mentionable & Buttonable & Templatable & Listable & Editable)
     | AnyMediaMessageContent
     | ({
         poll: PollMessageOptions
-    } & Mentionable & Buttonable & Templatable & Editable & Pinnable)
+    } & Mentionable & Buttonable & Templatable & Editable)
     | {
         contacts: {
             displayName?: string
@@ -178,6 +174,9 @@ export type AnyMessageContent = AnyRegularMessageContent | {
 } | {
     /** Delete your message or anyone's message in a group (admin required) */
 	delete: WAMessageKey
+} | {
+    pin: WAMessageKey
+    messageAddOnDurationInSecs: number
 } | {
 	disappearingMessagesInChat: boolean | number
 }
