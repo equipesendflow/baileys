@@ -2543,6 +2543,9 @@ export namespace proto {
 
         /** BotPluginMetadata pluginVersion */
         pluginVersion?: (number|null);
+
+        /** BotPluginMetadata searchQuery */
+        searchQuery?: (string|null);
     }
 
     /** Represents a BotPluginMetadata. */
@@ -2577,6 +2580,9 @@ export namespace proto {
 
         /** BotPluginMetadata pluginVersion. */
         public pluginVersion: number;
+
+        /** BotPluginMetadata searchQuery. */
+        public searchQuery: string;
 
         /**
          * Creates a new BotPluginMetadata instance using the specified properties.
@@ -6106,109 +6112,109 @@ export namespace proto {
         public static getTypeUrl(typeUrlPrefix?: string): string;
     }
 
-    /** Properties of an EncEventUpdateMessage. */
-    interface IEncEventUpdateMessage {
+    /** Properties of an EncEventResponseMessage. */
+    interface IEncEventResponseMessage {
 
-        /** EncEventUpdateMessage eventCreationMessageKey */
+        /** EncEventResponseMessage eventCreationMessageKey */
         eventCreationMessageKey?: (proto.IMessageKey|null);
 
-        /** EncEventUpdateMessage encPayload */
+        /** EncEventResponseMessage encPayload */
         encPayload?: (Uint8Array|null);
 
-        /** EncEventUpdateMessage encIv */
+        /** EncEventResponseMessage encIv */
         encIv?: (Uint8Array|null);
     }
 
-    /** Represents an EncEventUpdateMessage. */
-    class EncEventUpdateMessage implements IEncEventUpdateMessage {
+    /** Represents an EncEventResponseMessage. */
+    class EncEventResponseMessage implements IEncEventResponseMessage {
 
         /**
-         * Constructs a new EncEventUpdateMessage.
+         * Constructs a new EncEventResponseMessage.
          * @param [properties] Properties to set
          */
-        constructor(properties?: proto.IEncEventUpdateMessage);
+        constructor(properties?: proto.IEncEventResponseMessage);
 
-        /** EncEventUpdateMessage eventCreationMessageKey. */
+        /** EncEventResponseMessage eventCreationMessageKey. */
         public eventCreationMessageKey?: (proto.IMessageKey|null);
 
-        /** EncEventUpdateMessage encPayload. */
+        /** EncEventResponseMessage encPayload. */
         public encPayload: Uint8Array;
 
-        /** EncEventUpdateMessage encIv. */
+        /** EncEventResponseMessage encIv. */
         public encIv: Uint8Array;
 
         /**
-         * Creates a new EncEventUpdateMessage instance using the specified properties.
+         * Creates a new EncEventResponseMessage instance using the specified properties.
          * @param [properties] Properties to set
-         * @returns EncEventUpdateMessage instance
+         * @returns EncEventResponseMessage instance
          */
-        public static create(properties?: proto.IEncEventUpdateMessage): proto.EncEventUpdateMessage;
+        public static create(properties?: proto.IEncEventResponseMessage): proto.EncEventResponseMessage;
 
         /**
-         * Encodes the specified EncEventUpdateMessage message. Does not implicitly {@link proto.EncEventUpdateMessage.verify|verify} messages.
-         * @param message EncEventUpdateMessage message or plain object to encode
+         * Encodes the specified EncEventResponseMessage message. Does not implicitly {@link proto.EncEventResponseMessage.verify|verify} messages.
+         * @param message EncEventResponseMessage message or plain object to encode
          * @param [writer] Writer to encode to
          * @returns Writer
          */
-        public static encode(message: proto.IEncEventUpdateMessage, writer?: $protobuf.Writer): $protobuf.Writer;
+        public static encode(message: proto.IEncEventResponseMessage, writer?: $protobuf.Writer): $protobuf.Writer;
 
         /**
-         * Encodes the specified EncEventUpdateMessage message, length delimited. Does not implicitly {@link proto.EncEventUpdateMessage.verify|verify} messages.
-         * @param message EncEventUpdateMessage message or plain object to encode
+         * Encodes the specified EncEventResponseMessage message, length delimited. Does not implicitly {@link proto.EncEventResponseMessage.verify|verify} messages.
+         * @param message EncEventResponseMessage message or plain object to encode
          * @param [writer] Writer to encode to
          * @returns Writer
          */
-        public static encodeDelimited(message: proto.IEncEventUpdateMessage, writer?: $protobuf.Writer): $protobuf.Writer;
+        public static encodeDelimited(message: proto.IEncEventResponseMessage, writer?: $protobuf.Writer): $protobuf.Writer;
 
         /**
-         * Decodes an EncEventUpdateMessage message from the specified reader or buffer.
+         * Decodes an EncEventResponseMessage message from the specified reader or buffer.
          * @param reader Reader or buffer to decode from
          * @param [length] Message length if known beforehand
-         * @returns EncEventUpdateMessage
+         * @returns EncEventResponseMessage
          * @throws {Error} If the payload is not a reader or valid buffer
          * @throws {$protobuf.util.ProtocolError} If required fields are missing
          */
-        public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): proto.EncEventUpdateMessage;
+        public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): proto.EncEventResponseMessage;
 
         /**
-         * Decodes an EncEventUpdateMessage message from the specified reader or buffer, length delimited.
+         * Decodes an EncEventResponseMessage message from the specified reader or buffer, length delimited.
          * @param reader Reader or buffer to decode from
-         * @returns EncEventUpdateMessage
+         * @returns EncEventResponseMessage
          * @throws {Error} If the payload is not a reader or valid buffer
          * @throws {$protobuf.util.ProtocolError} If required fields are missing
          */
-        public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): proto.EncEventUpdateMessage;
+        public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): proto.EncEventResponseMessage;
 
         /**
-         * Verifies an EncEventUpdateMessage message.
+         * Verifies an EncEventResponseMessage message.
          * @param message Plain object to verify
          * @returns `null` if valid, otherwise the reason why it is not
          */
         public static verify(message: { [k: string]: any }): (string|null);
 
         /**
-         * Creates an EncEventUpdateMessage message from a plain object. Also converts values to their respective internal types.
+         * Creates an EncEventResponseMessage message from a plain object. Also converts values to their respective internal types.
          * @param object Plain object
-         * @returns EncEventUpdateMessage
+         * @returns EncEventResponseMessage
          */
-        public static fromObject(object: { [k: string]: any }): proto.EncEventUpdateMessage;
+        public static fromObject(object: { [k: string]: any }): proto.EncEventResponseMessage;
 
         /**
-         * Creates a plain object from an EncEventUpdateMessage message. Also converts values to other types if specified.
-         * @param message EncEventUpdateMessage
+         * Creates a plain object from an EncEventResponseMessage message. Also converts values to other types if specified.
+         * @param message EncEventResponseMessage
          * @param [options] Conversion options
          * @returns Plain object
          */
-        public static toObject(message: proto.EncEventUpdateMessage, options?: $protobuf.IConversionOptions): { [k: string]: any };
+        public static toObject(message: proto.EncEventResponseMessage, options?: $protobuf.IConversionOptions): { [k: string]: any };
 
         /**
-         * Converts this EncEventUpdateMessage to JSON.
+         * Converts this EncEventResponseMessage to JSON.
          * @returns JSON object
          */
         public toJSON(): { [k: string]: any };
 
         /**
-         * Gets the default type url for EncEventUpdateMessage
+         * Gets the default type url for EncEventResponseMessage
          * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
          * @returns The default type url
          */
@@ -6318,109 +6324,6 @@ export namespace proto {
 
         /**
          * Gets the default type url for EncReactionMessage
-         * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
-         * @returns The default type url
-         */
-        public static getTypeUrl(typeUrlPrefix?: string): string;
-    }
-
-    /** Properties of an EventEditMessage. */
-    interface IEventEditMessage {
-
-        /** EventEditMessage eventEditMessage */
-        eventEditMessage?: (proto.IEventMessage|null);
-
-        /** EventEditMessage editTimestampMs */
-        editTimestampMs?: (number|Long|null);
-    }
-
-    /** Represents an EventEditMessage. */
-    class EventEditMessage implements IEventEditMessage {
-
-        /**
-         * Constructs a new EventEditMessage.
-         * @param [properties] Properties to set
-         */
-        constructor(properties?: proto.IEventEditMessage);
-
-        /** EventEditMessage eventEditMessage. */
-        public eventEditMessage?: (proto.IEventMessage|null);
-
-        /** EventEditMessage editTimestampMs. */
-        public editTimestampMs: (number|Long);
-
-        /**
-         * Creates a new EventEditMessage instance using the specified properties.
-         * @param [properties] Properties to set
-         * @returns EventEditMessage instance
-         */
-        public static create(properties?: proto.IEventEditMessage): proto.EventEditMessage;
-
-        /**
-         * Encodes the specified EventEditMessage message. Does not implicitly {@link proto.EventEditMessage.verify|verify} messages.
-         * @param message EventEditMessage message or plain object to encode
-         * @param [writer] Writer to encode to
-         * @returns Writer
-         */
-        public static encode(message: proto.IEventEditMessage, writer?: $protobuf.Writer): $protobuf.Writer;
-
-        /**
-         * Encodes the specified EventEditMessage message, length delimited. Does not implicitly {@link proto.EventEditMessage.verify|verify} messages.
-         * @param message EventEditMessage message or plain object to encode
-         * @param [writer] Writer to encode to
-         * @returns Writer
-         */
-        public static encodeDelimited(message: proto.IEventEditMessage, writer?: $protobuf.Writer): $protobuf.Writer;
-
-        /**
-         * Decodes an EventEditMessage message from the specified reader or buffer.
-         * @param reader Reader or buffer to decode from
-         * @param [length] Message length if known beforehand
-         * @returns EventEditMessage
-         * @throws {Error} If the payload is not a reader or valid buffer
-         * @throws {$protobuf.util.ProtocolError} If required fields are missing
-         */
-        public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): proto.EventEditMessage;
-
-        /**
-         * Decodes an EventEditMessage message from the specified reader or buffer, length delimited.
-         * @param reader Reader or buffer to decode from
-         * @returns EventEditMessage
-         * @throws {Error} If the payload is not a reader or valid buffer
-         * @throws {$protobuf.util.ProtocolError} If required fields are missing
-         */
-        public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): proto.EventEditMessage;
-
-        /**
-         * Verifies an EventEditMessage message.
-         * @param message Plain object to verify
-         * @returns `null` if valid, otherwise the reason why it is not
-         */
-        public static verify(message: { [k: string]: any }): (string|null);
-
-        /**
-         * Creates an EventEditMessage message from a plain object. Also converts values to their respective internal types.
-         * @param object Plain object
-         * @returns EventEditMessage
-         */
-        public static fromObject(object: { [k: string]: any }): proto.EventEditMessage;
-
-        /**
-         * Creates a plain object from an EventEditMessage message. Also converts values to other types if specified.
-         * @param message EventEditMessage
-         * @param [options] Conversion options
-         * @returns Plain object
-         */
-        public static toObject(message: proto.EventEditMessage, options?: $protobuf.IConversionOptions): { [k: string]: any };
-
-        /**
-         * Converts this EventEditMessage to JSON.
-         * @returns JSON object
-         */
-        public toJSON(): { [k: string]: any };
-
-        /**
-         * Gets the default type url for EventEditMessage
          * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
          * @returns The default type url
          */
@@ -6671,109 +6574,6 @@ export namespace proto {
             GOING = 1,
             NOT_GOING = 2
         }
-    }
-
-    /** Properties of an EventUpdateMessage. */
-    interface IEventUpdateMessage {
-
-        /** EventUpdateMessage response */
-        response?: (proto.IEventResponseMessage|null);
-
-        /** EventUpdateMessage edit */
-        edit?: (proto.IEventEditMessage|null);
-    }
-
-    /** Represents an EventUpdateMessage. */
-    class EventUpdateMessage implements IEventUpdateMessage {
-
-        /**
-         * Constructs a new EventUpdateMessage.
-         * @param [properties] Properties to set
-         */
-        constructor(properties?: proto.IEventUpdateMessage);
-
-        /** EventUpdateMessage response. */
-        public response?: (proto.IEventResponseMessage|null);
-
-        /** EventUpdateMessage edit. */
-        public edit?: (proto.IEventEditMessage|null);
-
-        /**
-         * Creates a new EventUpdateMessage instance using the specified properties.
-         * @param [properties] Properties to set
-         * @returns EventUpdateMessage instance
-         */
-        public static create(properties?: proto.IEventUpdateMessage): proto.EventUpdateMessage;
-
-        /**
-         * Encodes the specified EventUpdateMessage message. Does not implicitly {@link proto.EventUpdateMessage.verify|verify} messages.
-         * @param message EventUpdateMessage message or plain object to encode
-         * @param [writer] Writer to encode to
-         * @returns Writer
-         */
-        public static encode(message: proto.IEventUpdateMessage, writer?: $protobuf.Writer): $protobuf.Writer;
-
-        /**
-         * Encodes the specified EventUpdateMessage message, length delimited. Does not implicitly {@link proto.EventUpdateMessage.verify|verify} messages.
-         * @param message EventUpdateMessage message or plain object to encode
-         * @param [writer] Writer to encode to
-         * @returns Writer
-         */
-        public static encodeDelimited(message: proto.IEventUpdateMessage, writer?: $protobuf.Writer): $protobuf.Writer;
-
-        /**
-         * Decodes an EventUpdateMessage message from the specified reader or buffer.
-         * @param reader Reader or buffer to decode from
-         * @param [length] Message length if known beforehand
-         * @returns EventUpdateMessage
-         * @throws {Error} If the payload is not a reader or valid buffer
-         * @throws {$protobuf.util.ProtocolError} If required fields are missing
-         */
-        public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): proto.EventUpdateMessage;
-
-        /**
-         * Decodes an EventUpdateMessage message from the specified reader or buffer, length delimited.
-         * @param reader Reader or buffer to decode from
-         * @returns EventUpdateMessage
-         * @throws {Error} If the payload is not a reader or valid buffer
-         * @throws {$protobuf.util.ProtocolError} If required fields are missing
-         */
-        public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): proto.EventUpdateMessage;
-
-        /**
-         * Verifies an EventUpdateMessage message.
-         * @param message Plain object to verify
-         * @returns `null` if valid, otherwise the reason why it is not
-         */
-        public static verify(message: { [k: string]: any }): (string|null);
-
-        /**
-         * Creates an EventUpdateMessage message from a plain object. Also converts values to their respective internal types.
-         * @param object Plain object
-         * @returns EventUpdateMessage
-         */
-        public static fromObject(object: { [k: string]: any }): proto.EventUpdateMessage;
-
-        /**
-         * Creates a plain object from an EventUpdateMessage message. Also converts values to other types if specified.
-         * @param message EventUpdateMessage
-         * @param [options] Conversion options
-         * @returns Plain object
-         */
-        public static toObject(message: proto.EventUpdateMessage, options?: $protobuf.IConversionOptions): { [k: string]: any };
-
-        /**
-         * Converts this EventUpdateMessage to JSON.
-         * @returns JSON object
-         */
-        public toJSON(): { [k: string]: any };
-
-        /**
-         * Gets the default type url for EventUpdateMessage
-         * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
-         * @returns The default type url
-         */
-        public static getTypeUrl(typeUrlPrefix?: string): string;
     }
 
     /** Properties of an ExtendedTextMessage. */
@@ -9459,6 +9259,221 @@ export namespace proto {
 
     namespace InteractiveMessage {
 
+        /** Properties of a NativeFlowMessage. */
+        interface INativeFlowMessage {
+
+            /** NativeFlowMessage buttons */
+            buttons?: (proto.InteractiveMessage.NativeFlowMessage.INativeFlowButton[]|null);
+
+            /** NativeFlowMessage messageParamsJson */
+            messageParamsJson?: (string|null);
+
+            /** NativeFlowMessage messageVersion */
+            messageVersion?: (number|null);
+        }
+
+        /** Represents a NativeFlowMessage. */
+        class NativeFlowMessage implements INativeFlowMessage {
+
+            /**
+             * Constructs a new NativeFlowMessage.
+             * @param [properties] Properties to set
+             */
+            constructor(properties?: proto.InteractiveMessage.INativeFlowMessage);
+
+            /** NativeFlowMessage buttons. */
+            public buttons: proto.InteractiveMessage.NativeFlowMessage.INativeFlowButton[];
+
+            /** NativeFlowMessage messageParamsJson. */
+            public messageParamsJson: string;
+
+            /** NativeFlowMessage messageVersion. */
+            public messageVersion: number;
+
+            /**
+             * Creates a new NativeFlowMessage instance using the specified properties.
+             * @param [properties] Properties to set
+             * @returns NativeFlowMessage instance
+             */
+            public static create(properties?: proto.InteractiveMessage.INativeFlowMessage): proto.InteractiveMessage.NativeFlowMessage;
+
+            /**
+             * Encodes the specified NativeFlowMessage message. Does not implicitly {@link proto.InteractiveMessage.NativeFlowMessage.verify|verify} messages.
+             * @param message NativeFlowMessage message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encode(message: proto.InteractiveMessage.INativeFlowMessage, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Encodes the specified NativeFlowMessage message, length delimited. Does not implicitly {@link proto.InteractiveMessage.NativeFlowMessage.verify|verify} messages.
+             * @param message NativeFlowMessage message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encodeDelimited(message: proto.InteractiveMessage.INativeFlowMessage, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Decodes a NativeFlowMessage message from the specified reader or buffer.
+             * @param reader Reader or buffer to decode from
+             * @param [length] Message length if known beforehand
+             * @returns NativeFlowMessage
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): proto.InteractiveMessage.NativeFlowMessage;
+
+            /**
+             * Decodes a NativeFlowMessage message from the specified reader or buffer, length delimited.
+             * @param reader Reader or buffer to decode from
+             * @returns NativeFlowMessage
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): proto.InteractiveMessage.NativeFlowMessage;
+
+            /**
+             * Verifies a NativeFlowMessage message.
+             * @param message Plain object to verify
+             * @returns `null` if valid, otherwise the reason why it is not
+             */
+            public static verify(message: { [k: string]: any }): (string|null);
+
+            /**
+             * Creates a NativeFlowMessage message from a plain object. Also converts values to their respective internal types.
+             * @param object Plain object
+             * @returns NativeFlowMessage
+             */
+            public static fromObject(object: { [k: string]: any }): proto.InteractiveMessage.NativeFlowMessage;
+
+            /**
+             * Creates a plain object from a NativeFlowMessage message. Also converts values to other types if specified.
+             * @param message NativeFlowMessage
+             * @param [options] Conversion options
+             * @returns Plain object
+             */
+            public static toObject(message: proto.InteractiveMessage.NativeFlowMessage, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+            /**
+             * Converts this NativeFlowMessage to JSON.
+             * @returns JSON object
+             */
+            public toJSON(): { [k: string]: any };
+
+            /**
+             * Gets the default type url for NativeFlowMessage
+             * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns The default type url
+             */
+            public static getTypeUrl(typeUrlPrefix?: string): string;
+        }
+
+        namespace NativeFlowMessage {
+
+            /** Properties of a NativeFlowButton. */
+            interface INativeFlowButton {
+
+                /** NativeFlowButton name */
+                name?: (string|null);
+
+                /** NativeFlowButton buttonParamsJson */
+                buttonParamsJson?: (string|null);
+            }
+
+            /** Represents a NativeFlowButton. */
+            class NativeFlowButton implements INativeFlowButton {
+
+                /**
+                 * Constructs a new NativeFlowButton.
+                 * @param [properties] Properties to set
+                 */
+                constructor(properties?: proto.InteractiveMessage.NativeFlowMessage.INativeFlowButton);
+
+                /** NativeFlowButton name. */
+                public name: string;
+
+                /** NativeFlowButton buttonParamsJson. */
+                public buttonParamsJson: string;
+
+                /**
+                 * Creates a new NativeFlowButton instance using the specified properties.
+                 * @param [properties] Properties to set
+                 * @returns NativeFlowButton instance
+                 */
+                public static create(properties?: proto.InteractiveMessage.NativeFlowMessage.INativeFlowButton): proto.InteractiveMessage.NativeFlowMessage.NativeFlowButton;
+
+                /**
+                 * Encodes the specified NativeFlowButton message. Does not implicitly {@link proto.InteractiveMessage.NativeFlowMessage.NativeFlowButton.verify|verify} messages.
+                 * @param message NativeFlowButton message or plain object to encode
+                 * @param [writer] Writer to encode to
+                 * @returns Writer
+                 */
+                public static encode(message: proto.InteractiveMessage.NativeFlowMessage.INativeFlowButton, writer?: $protobuf.Writer): $protobuf.Writer;
+
+                /**
+                 * Encodes the specified NativeFlowButton message, length delimited. Does not implicitly {@link proto.InteractiveMessage.NativeFlowMessage.NativeFlowButton.verify|verify} messages.
+                 * @param message NativeFlowButton message or plain object to encode
+                 * @param [writer] Writer to encode to
+                 * @returns Writer
+                 */
+                public static encodeDelimited(message: proto.InteractiveMessage.NativeFlowMessage.INativeFlowButton, writer?: $protobuf.Writer): $protobuf.Writer;
+
+                /**
+                 * Decodes a NativeFlowButton message from the specified reader or buffer.
+                 * @param reader Reader or buffer to decode from
+                 * @param [length] Message length if known beforehand
+                 * @returns NativeFlowButton
+                 * @throws {Error} If the payload is not a reader or valid buffer
+                 * @throws {$protobuf.util.ProtocolError} If required fields are missing
+                 */
+                public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): proto.InteractiveMessage.NativeFlowMessage.NativeFlowButton;
+
+                /**
+                 * Decodes a NativeFlowButton message from the specified reader or buffer, length delimited.
+                 * @param reader Reader or buffer to decode from
+                 * @returns NativeFlowButton
+                 * @throws {Error} If the payload is not a reader or valid buffer
+                 * @throws {$protobuf.util.ProtocolError} If required fields are missing
+                 */
+                public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): proto.InteractiveMessage.NativeFlowMessage.NativeFlowButton;
+
+                /**
+                 * Verifies a NativeFlowButton message.
+                 * @param message Plain object to verify
+                 * @returns `null` if valid, otherwise the reason why it is not
+                 */
+                public static verify(message: { [k: string]: any }): (string|null);
+
+                /**
+                 * Creates a NativeFlowButton message from a plain object. Also converts values to their respective internal types.
+                 * @param object Plain object
+                 * @returns NativeFlowButton
+                 */
+                public static fromObject(object: { [k: string]: any }): proto.InteractiveMessage.NativeFlowMessage.NativeFlowButton;
+
+                /**
+                 * Creates a plain object from a NativeFlowButton message. Also converts values to other types if specified.
+                 * @param message NativeFlowButton
+                 * @param [options] Conversion options
+                 * @returns Plain object
+                 */
+                public static toObject(message: proto.InteractiveMessage.NativeFlowMessage.NativeFlowButton, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+                /**
+                 * Converts this NativeFlowButton to JSON.
+                 * @returns JSON object
+                 */
+                public toJSON(): { [k: string]: any };
+
+                /**
+                 * Gets the default type url for NativeFlowButton
+                 * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+                 * @returns The default type url
+                 */
+                public static getTypeUrl(typeUrlPrefix?: string): string;
+            }
+        }
+
         /** Properties of a Header. */
         interface IHeader {
 
@@ -9485,6 +9500,9 @@ export namespace proto {
 
             /** Header locationMessage */
             locationMessage?: (proto.ILocationMessage|null);
+
+            /** Header productMessage */
+            productMessage?: (proto.IProductMessage|null);
         }
 
         /** Represents a Header. */
@@ -9520,8 +9538,11 @@ export namespace proto {
             /** Header locationMessage. */
             public locationMessage?: (proto.ILocationMessage|null);
 
+            /** Header productMessage. */
+            public productMessage?: (proto.IProductMessage|null);
+
             /** Header media. */
-            public media?: ("documentMessage"|"imageMessage"|"jpegThumbnail"|"videoMessage"|"locationMessage");
+            public media?: ("documentMessage"|"imageMessage"|"jpegThumbnail"|"videoMessage"|"locationMessage"|"productMessage");
 
             /**
              * Creates a new Header instance using the specified properties.
@@ -10124,221 +10145,6 @@ export namespace proto {
                 FB = 1,
                 IG = 2,
                 WA = 3
-            }
-        }
-
-        /** Properties of a NativeFlowMessage. */
-        interface INativeFlowMessage {
-
-            /** NativeFlowMessage buttons */
-            buttons?: (proto.InteractiveMessage.NativeFlowMessage.INativeFlowButton[]|null);
-
-            /** NativeFlowMessage messageParamsJson */
-            messageParamsJson?: (string|null);
-
-            /** NativeFlowMessage messageVersion */
-            messageVersion?: (number|null);
-        }
-
-        /** Represents a NativeFlowMessage. */
-        class NativeFlowMessage implements INativeFlowMessage {
-
-            /**
-             * Constructs a new NativeFlowMessage.
-             * @param [properties] Properties to set
-             */
-            constructor(properties?: proto.InteractiveMessage.INativeFlowMessage);
-
-            /** NativeFlowMessage buttons. */
-            public buttons: proto.InteractiveMessage.NativeFlowMessage.INativeFlowButton[];
-
-            /** NativeFlowMessage messageParamsJson. */
-            public messageParamsJson: string;
-
-            /** NativeFlowMessage messageVersion. */
-            public messageVersion: number;
-
-            /**
-             * Creates a new NativeFlowMessage instance using the specified properties.
-             * @param [properties] Properties to set
-             * @returns NativeFlowMessage instance
-             */
-            public static create(properties?: proto.InteractiveMessage.INativeFlowMessage): proto.InteractiveMessage.NativeFlowMessage;
-
-            /**
-             * Encodes the specified NativeFlowMessage message. Does not implicitly {@link proto.InteractiveMessage.NativeFlowMessage.verify|verify} messages.
-             * @param message NativeFlowMessage message or plain object to encode
-             * @param [writer] Writer to encode to
-             * @returns Writer
-             */
-            public static encode(message: proto.InteractiveMessage.INativeFlowMessage, writer?: $protobuf.Writer): $protobuf.Writer;
-
-            /**
-             * Encodes the specified NativeFlowMessage message, length delimited. Does not implicitly {@link proto.InteractiveMessage.NativeFlowMessage.verify|verify} messages.
-             * @param message NativeFlowMessage message or plain object to encode
-             * @param [writer] Writer to encode to
-             * @returns Writer
-             */
-            public static encodeDelimited(message: proto.InteractiveMessage.INativeFlowMessage, writer?: $protobuf.Writer): $protobuf.Writer;
-
-            /**
-             * Decodes a NativeFlowMessage message from the specified reader or buffer.
-             * @param reader Reader or buffer to decode from
-             * @param [length] Message length if known beforehand
-             * @returns NativeFlowMessage
-             * @throws {Error} If the payload is not a reader or valid buffer
-             * @throws {$protobuf.util.ProtocolError} If required fields are missing
-             */
-            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): proto.InteractiveMessage.NativeFlowMessage;
-
-            /**
-             * Decodes a NativeFlowMessage message from the specified reader or buffer, length delimited.
-             * @param reader Reader or buffer to decode from
-             * @returns NativeFlowMessage
-             * @throws {Error} If the payload is not a reader or valid buffer
-             * @throws {$protobuf.util.ProtocolError} If required fields are missing
-             */
-            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): proto.InteractiveMessage.NativeFlowMessage;
-
-            /**
-             * Verifies a NativeFlowMessage message.
-             * @param message Plain object to verify
-             * @returns `null` if valid, otherwise the reason why it is not
-             */
-            public static verify(message: { [k: string]: any }): (string|null);
-
-            /**
-             * Creates a NativeFlowMessage message from a plain object. Also converts values to their respective internal types.
-             * @param object Plain object
-             * @returns NativeFlowMessage
-             */
-            public static fromObject(object: { [k: string]: any }): proto.InteractiveMessage.NativeFlowMessage;
-
-            /**
-             * Creates a plain object from a NativeFlowMessage message. Also converts values to other types if specified.
-             * @param message NativeFlowMessage
-             * @param [options] Conversion options
-             * @returns Plain object
-             */
-            public static toObject(message: proto.InteractiveMessage.NativeFlowMessage, options?: $protobuf.IConversionOptions): { [k: string]: any };
-
-            /**
-             * Converts this NativeFlowMessage to JSON.
-             * @returns JSON object
-             */
-            public toJSON(): { [k: string]: any };
-
-            /**
-             * Gets the default type url for NativeFlowMessage
-             * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
-             * @returns The default type url
-             */
-            public static getTypeUrl(typeUrlPrefix?: string): string;
-        }
-
-        namespace NativeFlowMessage {
-
-            /** Properties of a NativeFlowButton. */
-            interface INativeFlowButton {
-
-                /** NativeFlowButton name */
-                name?: (string|null);
-
-                /** NativeFlowButton buttonParamsJson */
-                buttonParamsJson?: (string|null);
-            }
-
-            /** Represents a NativeFlowButton. */
-            class NativeFlowButton implements INativeFlowButton {
-
-                /**
-                 * Constructs a new NativeFlowButton.
-                 * @param [properties] Properties to set
-                 */
-                constructor(properties?: proto.InteractiveMessage.NativeFlowMessage.INativeFlowButton);
-
-                /** NativeFlowButton name. */
-                public name: string;
-
-                /** NativeFlowButton buttonParamsJson. */
-                public buttonParamsJson: string;
-
-                /**
-                 * Creates a new NativeFlowButton instance using the specified properties.
-                 * @param [properties] Properties to set
-                 * @returns NativeFlowButton instance
-                 */
-                public static create(properties?: proto.InteractiveMessage.NativeFlowMessage.INativeFlowButton): proto.InteractiveMessage.NativeFlowMessage.NativeFlowButton;
-
-                /**
-                 * Encodes the specified NativeFlowButton message. Does not implicitly {@link proto.InteractiveMessage.NativeFlowMessage.NativeFlowButton.verify|verify} messages.
-                 * @param message NativeFlowButton message or plain object to encode
-                 * @param [writer] Writer to encode to
-                 * @returns Writer
-                 */
-                public static encode(message: proto.InteractiveMessage.NativeFlowMessage.INativeFlowButton, writer?: $protobuf.Writer): $protobuf.Writer;
-
-                /**
-                 * Encodes the specified NativeFlowButton message, length delimited. Does not implicitly {@link proto.InteractiveMessage.NativeFlowMessage.NativeFlowButton.verify|verify} messages.
-                 * @param message NativeFlowButton message or plain object to encode
-                 * @param [writer] Writer to encode to
-                 * @returns Writer
-                 */
-                public static encodeDelimited(message: proto.InteractiveMessage.NativeFlowMessage.INativeFlowButton, writer?: $protobuf.Writer): $protobuf.Writer;
-
-                /**
-                 * Decodes a NativeFlowButton message from the specified reader or buffer.
-                 * @param reader Reader or buffer to decode from
-                 * @param [length] Message length if known beforehand
-                 * @returns NativeFlowButton
-                 * @throws {Error} If the payload is not a reader or valid buffer
-                 * @throws {$protobuf.util.ProtocolError} If required fields are missing
-                 */
-                public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): proto.InteractiveMessage.NativeFlowMessage.NativeFlowButton;
-
-                /**
-                 * Decodes a NativeFlowButton message from the specified reader or buffer, length delimited.
-                 * @param reader Reader or buffer to decode from
-                 * @returns NativeFlowButton
-                 * @throws {Error} If the payload is not a reader or valid buffer
-                 * @throws {$protobuf.util.ProtocolError} If required fields are missing
-                 */
-                public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): proto.InteractiveMessage.NativeFlowMessage.NativeFlowButton;
-
-                /**
-                 * Verifies a NativeFlowButton message.
-                 * @param message Plain object to verify
-                 * @returns `null` if valid, otherwise the reason why it is not
-                 */
-                public static verify(message: { [k: string]: any }): (string|null);
-
-                /**
-                 * Creates a NativeFlowButton message from a plain object. Also converts values to their respective internal types.
-                 * @param object Plain object
-                 * @returns NativeFlowButton
-                 */
-                public static fromObject(object: { [k: string]: any }): proto.InteractiveMessage.NativeFlowMessage.NativeFlowButton;
-
-                /**
-                 * Creates a plain object from a NativeFlowButton message. Also converts values to other types if specified.
-                 * @param message NativeFlowButton
-                 * @param [options] Conversion options
-                 * @returns Plain object
-                 */
-                public static toObject(message: proto.InteractiveMessage.NativeFlowMessage.NativeFlowButton, options?: $protobuf.IConversionOptions): { [k: string]: any };
-
-                /**
-                 * Converts this NativeFlowButton to JSON.
-                 * @returns JSON object
-                 */
-                public toJSON(): { [k: string]: any };
-
-                /**
-                 * Gets the default type url for NativeFlowButton
-                 * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
-                 * @returns The default type url
-                 */
-                public static getTypeUrl(typeUrlPrefix?: string): string;
             }
         }
     }
@@ -12679,6 +12485,9 @@ export namespace proto {
         /** Message eventMessage */
         eventMessage?: (proto.IEventMessage|null);
 
+        /** Message encEventResponseMessage */
+        encEventResponseMessage?: (proto.IEncEventResponseMessage|null);
+
         /** Message commentMessage */
         commentMessage?: (proto.ICommentMessage|null);
 
@@ -12691,8 +12500,8 @@ export namespace proto {
         /** Message placeholderMessage */
         placeholderMessage?: (proto.IPlaceholderMessage|null);
 
-        /** Message encEventUpdateMessage */
-        encEventUpdateMessage?: (proto.IEncEventUpdateMessage|null);
+        /** Message secretEncryptedMessage */
+        secretEncryptedMessage?: (proto.ISecretEncryptedMessage|null);
     }
 
     /** Represents a Message. */
@@ -12893,6 +12702,9 @@ export namespace proto {
         /** Message eventMessage. */
         public eventMessage?: (proto.IEventMessage|null);
 
+        /** Message encEventResponseMessage. */
+        public encEventResponseMessage?: (proto.IEncEventResponseMessage|null);
+
         /** Message commentMessage. */
         public commentMessage?: (proto.ICommentMessage|null);
 
@@ -12905,8 +12717,8 @@ export namespace proto {
         /** Message placeholderMessage. */
         public placeholderMessage?: (proto.IPlaceholderMessage|null);
 
-        /** Message encEventUpdateMessage. */
-        public encEventUpdateMessage?: (proto.IEncEventUpdateMessage|null);
+        /** Message secretEncryptedMessage. */
+        public secretEncryptedMessage?: (proto.ISecretEncryptedMessage|null);
 
         /**
          * Creates a new Message instance using the specified properties.
@@ -17604,6 +17416,131 @@ export namespace proto {
         enum EditType {
             UNKNOWN = 0,
             CANCEL = 1
+        }
+    }
+
+    /** Properties of a SecretEncryptedMessage. */
+    interface ISecretEncryptedMessage {
+
+        /** SecretEncryptedMessage targetMessageKey */
+        targetMessageKey?: (proto.IMessageKey|null);
+
+        /** SecretEncryptedMessage encPayload */
+        encPayload?: (Uint8Array|null);
+
+        /** SecretEncryptedMessage encIv */
+        encIv?: (Uint8Array|null);
+
+        /** SecretEncryptedMessage secretEncType */
+        secretEncType?: (proto.SecretEncryptedMessage.SecretEncType|null);
+    }
+
+    /** Represents a SecretEncryptedMessage. */
+    class SecretEncryptedMessage implements ISecretEncryptedMessage {
+
+        /**
+         * Constructs a new SecretEncryptedMessage.
+         * @param [properties] Properties to set
+         */
+        constructor(properties?: proto.ISecretEncryptedMessage);
+
+        /** SecretEncryptedMessage targetMessageKey. */
+        public targetMessageKey?: (proto.IMessageKey|null);
+
+        /** SecretEncryptedMessage encPayload. */
+        public encPayload: Uint8Array;
+
+        /** SecretEncryptedMessage encIv. */
+        public encIv: Uint8Array;
+
+        /** SecretEncryptedMessage secretEncType. */
+        public secretEncType: proto.SecretEncryptedMessage.SecretEncType;
+
+        /**
+         * Creates a new SecretEncryptedMessage instance using the specified properties.
+         * @param [properties] Properties to set
+         * @returns SecretEncryptedMessage instance
+         */
+        public static create(properties?: proto.ISecretEncryptedMessage): proto.SecretEncryptedMessage;
+
+        /**
+         * Encodes the specified SecretEncryptedMessage message. Does not implicitly {@link proto.SecretEncryptedMessage.verify|verify} messages.
+         * @param message SecretEncryptedMessage message or plain object to encode
+         * @param [writer] Writer to encode to
+         * @returns Writer
+         */
+        public static encode(message: proto.ISecretEncryptedMessage, writer?: $protobuf.Writer): $protobuf.Writer;
+
+        /**
+         * Encodes the specified SecretEncryptedMessage message, length delimited. Does not implicitly {@link proto.SecretEncryptedMessage.verify|verify} messages.
+         * @param message SecretEncryptedMessage message or plain object to encode
+         * @param [writer] Writer to encode to
+         * @returns Writer
+         */
+        public static encodeDelimited(message: proto.ISecretEncryptedMessage, writer?: $protobuf.Writer): $protobuf.Writer;
+
+        /**
+         * Decodes a SecretEncryptedMessage message from the specified reader or buffer.
+         * @param reader Reader or buffer to decode from
+         * @param [length] Message length if known beforehand
+         * @returns SecretEncryptedMessage
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): proto.SecretEncryptedMessage;
+
+        /**
+         * Decodes a SecretEncryptedMessage message from the specified reader or buffer, length delimited.
+         * @param reader Reader or buffer to decode from
+         * @returns SecretEncryptedMessage
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): proto.SecretEncryptedMessage;
+
+        /**
+         * Verifies a SecretEncryptedMessage message.
+         * @param message Plain object to verify
+         * @returns `null` if valid, otherwise the reason why it is not
+         */
+        public static verify(message: { [k: string]: any }): (string|null);
+
+        /**
+         * Creates a SecretEncryptedMessage message from a plain object. Also converts values to their respective internal types.
+         * @param object Plain object
+         * @returns SecretEncryptedMessage
+         */
+        public static fromObject(object: { [k: string]: any }): proto.SecretEncryptedMessage;
+
+        /**
+         * Creates a plain object from a SecretEncryptedMessage message. Also converts values to other types if specified.
+         * @param message SecretEncryptedMessage
+         * @param [options] Conversion options
+         * @returns Plain object
+         */
+        public static toObject(message: proto.SecretEncryptedMessage, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+        /**
+         * Converts this SecretEncryptedMessage to JSON.
+         * @returns JSON object
+         */
+        public toJSON(): { [k: string]: any };
+
+        /**
+         * Gets the default type url for SecretEncryptedMessage
+         * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+         * @returns The default type url
+         */
+        public static getTypeUrl(typeUrlPrefix?: string): string;
+    }
+
+    namespace SecretEncryptedMessage {
+
+        /** SecretEncType enum. */
+        enum SecretEncType {
+            UNKNOWN = 0,
+            EVENT_RESPONSE = 1,
+            EVENT_EDIT = 2
         }
     }
 
