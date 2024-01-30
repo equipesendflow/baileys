@@ -204,7 +204,7 @@ export const prepareWAMessageMedia = async(
 					logger?.debug('processed waveform')
 				}
 			} catch(error) {
-				logger?.warn({ trace: error.stack }, 'failed to obtain extra info')
+				logger?.warn(error, 'failed to obtain extra info')
 			}
 		})(),
 	])
