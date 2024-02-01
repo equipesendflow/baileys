@@ -159,6 +159,12 @@ export const prepareWAMessageMedia = async(
 		}
 	)
 
+	if (uploadData?.media && 'url' in uploadData.media) {
+		console.log(`download`, uploadData.media.url)
+
+	}
+
+
 	if(fileLength >= 100000000) {
 		throw new Boom('Media body is larger than 100MB', { statusCode: 413 })
 	}
