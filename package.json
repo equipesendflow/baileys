@@ -28,7 +28,7 @@
     "proto-extract": "yarn --cwd proto-extract start > wa-logs.txt",
     "lint": "eslint . --ext .js,.ts,.jsx,.tsx",
     "lint:fix": "eslint . --fix --ext .js,.ts,.jsx,.tsx",
-		"watch": "npx rimraf lib && npx tsc -w",
+		"watch": "npx tsc -w"
   },
   "author": "Adhiraj Singh",
   "license": "MIT",
