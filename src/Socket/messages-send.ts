@@ -306,6 +306,8 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 	) => {
 		const meId = authState.creds.me!.id
 
+		const presync = false;
+
 		let shouldIncludeDeviceIdentity = false
 
 		const { user, server } = jidDecode(jid)!
@@ -342,8 +344,12 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 			async() => {
 				const mediaType = getMediaType(message)
 				if(isGroup) {
-					const [groupData, senderKeyMap] = await Promise.all([
+					const [_groupData, senderKeyMap] = await Promise.all([
 						(async() => {
+							if (!presync) return;
+							if(participant) return;
+
+
 							let groupData = cachedGroupMetadata ? await cachedGroupMetadata(jid) : undefined
 							if(groupData) {
 								logger.trace({ jid, participants: groupData.participants.length }, 'using cached group metadata')
@@ -353,10 +359,18 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 								groupData = await groupMetadata(jid)
 							}
 
+
+							if(!participant) {
+								const participantsList = groupData.participants.map(p => p.id)
+								const additionalDevices = await getUSyncDevices(participantsList, !!useUserDevicesCache, false)
+								devices.push(...additionalDevices)
+							}
+
+
 							return groupData
 						})(),
 						(async() => {
-							if(!participant) {
+							if(!participant && presync) {
 								const result = await authState.keys.get('sender-key-memory', [jid])
 								return result[jid] || { }
 							}
@@ -364,15 +378,12 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 							return { }
 						})()
 					])
+	
+						
 
-					if(!participant) {
-						const participantsList = groupData.participants.map(p => p.id)
-						const additionalDevices = await getUSyncDevices(participantsList, !!useUserDevicesCache, false)
-						devices.push(...additionalDevices)
-					}
+					
 
-					const patched = await patchMessageBeforeSending(message, devices.map(d => jidEncode(d.user, 's.whatsapp.net', d.device)))
-					const bytes = encodeWAMessage(patched)
+					const bytes = encodeWAMessage(message)
 
 					const { ciphertext, senderKeyDistributionMessage } = await signalRepository.encryptGroupMessage(
 						{
@@ -395,7 +406,7 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 
 					// if there are some participants with whom the session has not been established
 					// if there are, we re-send the senderkey
-					if(senderKeyJids.length) {
+					if(senderKeyJids.length && (presync || participant)) {
 						logger.debug({ senderKeyJids }, 'sending new sender key')
 
 						const senderKeyMsg: proto.IMessage = {
@@ -419,7 +430,9 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 						content: ciphertext
 					})
 
-					await authState.keys.set({ 'sender-key-memory': { [jid]: senderKeyMap } })
+					if (presync && !participant) {
+						await authState.keys.set({ 'sender-key-memory': { [jid]: senderKeyMap } })
+					}
 				} else {
 					const { user: meUser } = jidDecode(meId)!
 
