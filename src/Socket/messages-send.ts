@@ -306,7 +306,7 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 	) => {
 		const meId = authState.creds.me!.id
 
-		const presync = false;
+		const presync = true;
 
 		let shouldIncludeDeviceIdentity = false
 
