@@ -355,6 +355,23 @@ export const generateWAMessageContent = async(
 		}
 
 		m.reactionMessage = WAProto.ReactionMessage.fromObject(message.react)
+	} else if('pinMessage' in message) {
+
+		if(!message.pinMessage.pinInChatMessage.senderTimestampMs) {
+			message.pinMessage.pinInChatMessage.senderTimestampMs = Date.now()
+		}
+
+		m.pinInChatMessage = WAProto.PinInChatMessage.fromObject(message.pinMessage.pinInChatMessage)
+
+		// m.pinInChatMessage = {
+		// 	key: message.pinMessage,
+		// 	type: WAProto.PinInChatMessage.Type.UNPIN_FOR_ALL,
+		// 	senderTimestampMs: Date.now()
+		// }
+
+		m.messageContextInfo = {
+			messageAddOnDurationInSecs: message.pinMessage.duration || 0,
+		}
 	} else if('delete' in message) {
 		m.protocolMessage = {
 			key: message.delete,
@@ -366,16 +383,6 @@ export const generateWAMessageContent = async(
 			editedMessage: m,
 			timestampMs: Date.now(),
 			type: WAProto.ProtocolMessage.Type.MESSAGE_EDIT
-		}
-	} else if('pin' in message) {
-		m.pinInChatMessage = {
-			key: message.pin,
-			type: WAProto.PinInChatMessage.Type.UNPIN_FOR_ALL,
-			senderTimestampMs: Date.now()
-		}
-
-		m.messageContextInfo = {
-			messageAddOnDurationInSecs: message.messageAddOnDurationInSecs || 0,
 		}
 	} else if('forward' in message) {
 		m = generateForwardMessageContent(

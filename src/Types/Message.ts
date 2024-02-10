@@ -153,6 +153,12 @@ export type AnyRegularMessageContent = (
     }
     | { react: proto.IReactionMessage }
     | {
+        pinMessage: {
+            pinInChatMessage: proto.IPinInChatMessage
+            duration: number
+        }
+    }
+    | {
         buttonReply: ButtonReplyInfo
         type: 'template' | 'plain'
     }
@@ -174,9 +180,6 @@ export type AnyMessageContent = AnyRegularMessageContent | {
 } | {
     /** Delete your message or anyone's message in a group (admin required) */
 	delete: WAMessageKey
-} | {
-    pin: WAMessageKey
-    messageAddOnDurationInSecs: number
 } | {
 	disappearingMessagesInChat: boolean | number
 }
