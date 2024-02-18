@@ -10,6 +10,7 @@ import { areJidsSameUser, BinaryNode, getAllBinaryNodeChildren, getBinaryNodeChi
 import { extractGroupMetadata } from './groups'
 import { makeMessagesSocket } from './messages-send'
 import { Boom } from '@hapi/boom'
+import { WebSocket } from 'ws'
 
 export const makeMessagesRecvSocket = (config: SocketConfig) => {
 	const {
@@ -451,82 +452,87 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 			ids.push(...items.map(i => i.attrs.id))
 		}
 
-		await Promise.all([
-			processingMutex.mutex(
-				async() => {
-					const status = getStatusFromReceiptType(attrs.type)
-					if(
-						typeof status !== 'undefined' &&
-						(
-							// basically, we only want to know when a message from us has been delivered to/read by the other person
-							// or another device of ours has read some messages
-							status > proto.WebMessageInfo.Status.DELIVERY_ACK ||
-							!isNodeFromMe
-						)
-					) {
-						if(isJidGroup(remoteJid)) {
-							if(attrs.participant) {
-								const updateKey: keyof MessageUserReceipt = status === proto.WebMessageInfo.Status.DELIVERY_ACK ? 'receiptTimestamp' : 'readTimestamp'
-								ev.emit(
-									'message-receipt.update',
-									ids.map(id => ({
-										key: { ...key, id },
-										receipt: {
-											userJid: jidNormalizedUser(attrs.participant),
-											[updateKey]: +attrs.t
-										}
-									}))
-								)
-							}
-						} else {
+
+		processingMutex.mutex(
+			async() => {
+				if (ws.readyState !== WebSocket.OPEN) return;
+				
+				sendMessageAck(node);
+
+
+				const status = getStatusFromReceiptType(attrs.type)
+				if(
+					typeof status !== 'undefined' &&
+					(
+						// basically, we only want to know when a message from us has been delivered to/read by the other person
+						// or another device of ours has read some messages
+						status > proto.WebMessageInfo.Status.DELIVERY_ACK ||
+						!isNodeFromMe
+					)
+				) {
+					if(isJidGroup(remoteJid)) {
+						if(attrs.participant) {
+							const updateKey: keyof MessageUserReceipt = status === proto.WebMessageInfo.Status.DELIVERY_ACK ? 'receiptTimestamp' : 'readTimestamp'
 							ev.emit(
-								'messages.update',
+								'message-receipt.update',
 								ids.map(id => ({
 									key: { ...key, id },
-									update: { status }
+									receipt: {
+										userJid: jidNormalizedUser(attrs.participant),
+										[updateKey]: +attrs.t
+									}
 								}))
 							)
 						}
-					}
-
-
-
-
-					if(attrs.type === 'retry') {
-						// correctly set who is asking for the retry
-						key.participant = key.participant || attrs.from
-						const retryNode = getBinaryNodeChild(node, 'retry')
-						if(willSendMessageAgain(ids[0], key.participant)) {
-							if(key.fromMe) {
-								try {
-									// logger.info({ attrs }, 'recv retry request')
-									
-									await sendMessagesAgain(key, ids, retryNode!)
-								} catch(error) {
-									let log = true;
-
-									if (error instanceof Boom && error.output?.statusCode) {
-										const statusCode = +error.output.statusCode;
-										if (statusCode === DisconnectReason.connectionClosed || statusCode === DisconnectReason.connectionLost) {
-											log = false;
-										}
-									}
-
-									if (log) {
-										logger.error({ key, ids, trace: error.stack }, 'error in sending message again')
-									}
-								}
-							} else {
-								// logger.info({ attrs, key }, 'recv retry for not fromMe message')
-							}
-						} else {
-							// logger.info({ attrs }, 'will not send message again, as sent too many times')
-						}
+					} else {
+						ev.emit(
+							'messages.update',
+							ids.map(id => ({
+								key: { ...key, id },
+								update: { status }
+							}))
+						)
 					}
 				}
-			),
-			sendMessageAck(node)
-		])
+
+
+
+
+				if(attrs.type === 'retry') {
+					// correctly set who is asking for the retry
+					key.participant = key.participant || attrs.from
+					const retryNode = getBinaryNodeChild(node, 'retry')
+					if(willSendMessageAgain(ids[0], key.participant)) {
+						if(key.fromMe) {
+							try {
+								// logger.info({ attrs }, 'recv retry request')
+								
+								await sendMessagesAgain(key, ids, retryNode!)
+							} catch(error) {
+								let log = true;
+
+								if (error instanceof Boom && error.output?.statusCode) {
+									const statusCode = +error.output.statusCode;
+									if (statusCode === DisconnectReason.connectionClosed || statusCode === DisconnectReason.connectionLost) {
+										log = false;
+									}
+								}
+
+								if (log) {
+									logger.error({ key, ids, trace: error.stack }, 'error in sending message again')
+								}
+							}
+						} else {
+							// logger.info({ attrs, key }, 'recv retry for not fromMe message')
+						}
+					} else {
+						// logger.info({ attrs }, 'will not send message again, as sent too many times')
+					}
+				}
+
+
+			}
+		)
 	}
 
 	const handleNotification = async(node: BinaryNode) => {

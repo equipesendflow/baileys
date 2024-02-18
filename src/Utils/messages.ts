@@ -160,14 +160,15 @@ export const prepareWAMessageMedia = async(
 	)
 
 	if (uploadData?.media && 'url' in uploadData.media) {
-		console.log(`download`, uploadData.media.url)
+		console.log(`cacheableKey ${cacheableKey}`);
+		console.log(`download`, uploadData.media.url);
 
 	}
 
 
-	if(fileLength >= 100000000) {
-		throw new Boom('Media body is larger than 100MB', { statusCode: 413 })
-	}
+	// if(fileLength >= 100000000) {
+	// 	throw new Boom('Media body is larger than 100MB', { statusCode: 413 })
+	// }
 
 	 // url safe Base64 encode the SHA256 hash of the body
 	const fileEncSha256B64 = fileEncSha256.toString('base64')
