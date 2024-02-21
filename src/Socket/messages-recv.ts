@@ -744,7 +744,7 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 	})
 
 	ws.on('CB:call', async(node: BinaryNode) => {
-		// processNodeWithBuffer(node, 'handling call', handleCall)
+		processNodeWithBuffer(node, 'handling call', handleCall)
 	})
 
 	ws.on('CB:receipt', node => {
@@ -761,7 +761,6 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 	})
 
 	ev.on('call', ([ call ]) => {
-		return;
 		// missed call + group call notification message generation
 		if(call.status === 'timeout' || (call.status === 'offer' && call.isGroup)) {
 			const msg: proto.IWebMessageInfo = {
