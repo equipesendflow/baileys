@@ -229,6 +229,7 @@ message BotPluginMetadata {
     optional uint32 expectedLinksCount = 7;
     optional uint32 pluginVersion = 8;
     optional string searchQuery = 9;
+    optional MessageKey parentPluginMessageKey = 10;
 }
 
 message BotSuggestedPromptMetadata {
@@ -602,11 +603,6 @@ message ExtendedTextMessage {
     optional bool viewOnce = 30;
 }
 
-message ExtendedTextMessageWithParentKey {
-    optional MessageKey key = 1;
-    optional ExtendedTextMessage extendedTextMessage = 2;
-}
-
 message FutureProofMessage {
     optional Message message = 1;
 }
@@ -746,6 +742,10 @@ message HydratedTemplateButton {
 }
 
 message ImageMessage {
+    enum ImageSourceType {
+        USER_IMAGE = 0;
+        AI_GENERATED = 1;
+    }
     optional string url = 1;
     optional string mimetype = 2;
     optional string caption = 3;
@@ -773,6 +773,7 @@ message ImageMessage {
     optional bytes thumbnailEncSha256 = 28;
     optional string staticUrl = 29;
     repeated InteractiveAnnotation annotations = 30;
+    optional ImageSourceType imageSourceType = 31;
 }
 
 message InitialSecurityNotificationSettingSync {
@@ -1078,7 +1079,6 @@ message Message {
     optional EncEventResponseMessage encEventResponseMessage = 76;
     optional CommentMessage commentMessage = 77;
     optional NewsletterAdminInviteMessage newsletterAdminInviteMessage = 78;
-    optional ExtendedTextMessageWithParentKey extendedTextMessageWithParentKey = 79;
     optional PlaceholderMessage placeholderMessage = 80;
     optional SecretEncryptedMessage secretEncryptedMessage = 82;
 }
@@ -1436,8 +1436,7 @@ message ScheduledCallEditMessage {
 message SecretEncryptedMessage {
     enum SecretEncType {
         UNKNOWN = 0;
-        EVENT_RESPONSE = 1;
-        EVENT_EDIT = 2;
+        EVENT_EDIT = 1;
     }
     optional MessageKey targetMessageKey = 1;
     optional bytes encPayload = 2;
@@ -2953,6 +2952,8 @@ message WebMessageInfo {
         REMINDER_SETUP_MESSAGE = 198;
         REMINDER_SENT_MESSAGE = 199;
         REMINDER_CANCEL_MESSAGE = 200;
+        BIZ_COEX_PRIVACY_INIT = 201;
+        BIZ_COEX_PRIVACY_TRANSITION = 202;
     }
     enum Status {
         ERROR = 0;
