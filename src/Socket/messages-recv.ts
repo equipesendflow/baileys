@@ -130,10 +130,13 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 						{
 							tag: 'retry',
 							attrs: {
-								count: retryCount as any,
-								id: node.attrs.id.toString(),
-								t: node.attrs.t.toString(),
-								v: '1'
+								// count: retryCount as any,
+								// id: node.attrs.id.toString(),
+								// t: node.attrs.t.toString(),
+								// v: '1'
+								count: retryCount.toString(),
+								id: node.attrs.id,
+								t: node.attrs.t,
 							}
 						},
 						{
