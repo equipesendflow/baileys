@@ -336,6 +336,7 @@ export const extractGroupMetadata = (result: BinaryNode) => {
 		memberAddMode: getBinaryNodeChildString(group, 'member_add_mode'),
 		restrict: !!getBinaryNodeChild(group, 'locked'),
 		announce: !!getBinaryNodeChild(group, 'announcement'),
+		joinApprovalMode: !!getBinaryNodeChild(group, 'membership_approval_mode'),
 		participants: getBinaryNodeChildren(group, 'participant').map(
 			({ attrs }) => {
 				return {

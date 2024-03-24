@@ -32,6 +32,8 @@ export interface GroupMetadata {
     descId?: string
     community?: Community
     memberAddMode?: string
+    /** Request approval to join the group */
+    joinApprovalMode?: boolean
     /** is set when the group only allows admins to change group settings */
     restrict?: boolean
     /** is set when the group only allows admins to write messages */
