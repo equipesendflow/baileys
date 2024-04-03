@@ -9,6 +9,7 @@ import { getUrlInfo } from '../Utils/link-preview'
 import { areJidsSameUser, BinaryNode, BinaryNodeAttributes, getBinaryNodeChild, getBinaryNodeChildren, isJidGroup, isJidUser, jidDecode, jidEncode, jidNormalizedUser, JidWithDevice, S_WHATSAPP_NET } from '../WABinary'
 import { makeGroupsSocket } from './groups'
 import ListType = proto.ListMessage.ListType;
+import { makeCallbackPartitions } from '../Utils/utils'
 
 export const makeMessagesSocket = (config: SocketConfig) => {
 	const {
@@ -160,49 +161,59 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 			}
 		}
 
-		const iq: BinaryNode = {
-			tag: 'iq',
-			attrs: {
-				to: S_WHATSAPP_NET,
-				type: 'get',
-				xmlns: 'usync',
-			},
-			content: [
-				{
-					tag: 'usync',
+		logger.info(`${users.length} users`)
+
+
+		const deviceMap: { [_: string]: JidWithDevice[] } = {}
+
+		await makeCallbackPartitions({
+			list: users,
+			callback: async (users) => {
+				const iq: BinaryNode = {
+					tag: 'iq',
 					attrs: {
-						sid: generateMessageTag(),
-						mode: 'query',
-						last: 'true',
-						index: '0',
-						context: 'message',
+						to: S_WHATSAPP_NET,
+						type: 'get',
+						xmlns: 'usync',
 					},
 					content: [
 						{
-							tag: 'query',
-							attrs: { },
+							tag: 'usync',
+							attrs: {
+								sid: generateMessageTag(),
+								mode: 'query',
+								last: 'true',
+								index: '0',
+								context: 'message',
+							},
 							content: [
 								{
-									tag: 'devices',
-									attrs: { version: '2' }
-								}
+									tag: 'query',
+									attrs: { },
+									content: [
+										{
+											tag: 'devices',
+											attrs: { version: '2' }
+										}
+									]
+								},
+								{ tag: 'list', attrs: { }, content: users }
 							]
 						},
-						{ tag: 'list', attrs: { }, content: users }
-					]
-				},
-			],
-		}
-		const result = await query(iq)
-		const extracted = extractDeviceJids(result, authState.creds.me!.id, ignoreZeroDevices)
-		const deviceMap: { [_: string]: JidWithDevice[] } = {}
-
-		for(const item of extracted) {
-			deviceMap[item.user] = deviceMap[item.user] || []
-			deviceMap[item.user].push(item)
-
-			deviceResults.push(item)
-		}
+					],
+				}
+				const result = await query(iq)
+				const extracted = extractDeviceJids(result, authState.creds.me!.id, ignoreZeroDevices)
+	
+				for(const item of extracted) {
+					deviceMap[item.user] = deviceMap[item.user] || []
+					deviceMap[item.user].push(item)
+		
+					deviceResults.push(item)
+				}
+			},
+			partitionLength: 200
+		});
 
 		for(const key in deviceMap) {
 			userDevicesCache.set(key, deviceMap[key])
@@ -233,27 +244,35 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 
 		if(jidsRequiringFetch.length) {
 			logger.debug({ jidsRequiringFetch }, 'fetching sessions')
-			const result = await query({
-				tag: 'iq',
-				attrs: {
-					xmlns: 'encrypt',
-					type: 'get',
-					to: S_WHATSAPP_NET,
+
+			await makeCallbackPartitions({
+				list: jidsRequiringFetch,
+				callback: async (ls) => {
+					const result = await query({
+						tag: 'iq',
+						attrs: {
+							xmlns: 'encrypt',
+							type: 'get',
+							to: S_WHATSAPP_NET,
+						},
+						content: [
+							{
+								tag: 'key',
+								attrs: { },
+								content: ls.map(
+									jid => ({
+										tag: 'user',
+										attrs: { jid },
+									})
+								)
+							}
+						]
+					})
+
+					await parseAndInjectE2ESessions(result, signalRepository)
 				},
-				content: [
-					{
-						tag: 'key',
-						attrs: { },
-						content: jidsRequiringFetch.map(
-							jid => ({
-								tag: 'user',
-								attrs: { jid },
-							})
-						)
-					}
-				]
+				partitionLength: 200
 			})
-			await parseAndInjectE2ESessions(result, signalRepository)
 
 			didFetchNewSession = true
 		}
@@ -343,8 +362,9 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 		await authState.keys.transaction(
 			async() => {
 				const mediaType = getMediaType(message)
+
 				if(isGroup) {
-					const [_groupData, senderKeyMap] = await Promise.all([
+					const [_groupData, senderKeyMap, { ciphertext, senderKeyDistributionMessage }] = await Promise.all([
 						(async() => {
 							if (!presync) return;
 							if(participant) return;
@@ -364,6 +384,9 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 								const participantsList = groupData.participants.map(p => p.id)
 								const additionalDevices = await getUSyncDevices(participantsList, !!useUserDevicesCache, false)
 								devices.push(...additionalDevices)
+
+								console.log('devices')
+								console.log(JSON.stringify(additionalDevices, null, 2))
 							}
 
 
@@ -376,6 +399,19 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 							}
 
 							return { }
+						})(),
+						(async() => {
+							const bytes = encodeWAMessage(message)
+
+							const { ciphertext, senderKeyDistributionMessage } = await signalRepository.encryptGroupMessage(
+								{
+									group: destinationJid,
+									data: bytes,
+									meId,
+								}
+							)
+
+							return { ciphertext, senderKeyDistributionMessage }
 						})()
 					])
 	
@@ -383,15 +419,7 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 
 					
 
-					const bytes = encodeWAMessage(message)
-
-					const { ciphertext, senderKeyDistributionMessage } = await signalRepository.encryptGroupMessage(
-						{
-							group: destinationJid,
-							data: bytes,
-							meId,
-						}
-					)
+					
 
 					const senderKeyJids: string[] = []
 					// ensure a connection is established with every device
@@ -431,7 +459,7 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 					})
 
 					if (presync && !participant) {
-						await authState.keys.set({ 'sender-key-memory': { [jid]: senderKeyMap } })
+						authState.keys.set({ 'sender-key-memory': { [jid]: senderKeyMap } })
 					}
 				} else {
 					const { user: meUser } = jidDecode(meId)!
