@@ -384,9 +384,6 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 								const participantsList = groupData.participants.map(p => p.id)
 								const additionalDevices = await getUSyncDevices(participantsList, !!useUserDevicesCache, false)
 								devices.push(...additionalDevices)
-
-								console.log('devices')
-								console.log(JSON.stringify(additionalDevices, null, 2))
 							}
 
 
