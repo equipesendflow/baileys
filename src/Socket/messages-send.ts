@@ -202,6 +202,7 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 						},
 					],
 				}
+
 				const result = await query(iq)
 				const extracted = extractDeviceJids(result, authState.creds.me!.id, ignoreZeroDevices)
 	

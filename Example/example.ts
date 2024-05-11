@@ -1,6 +1,6 @@
 import { Boom } from '@hapi/boom'
 import NodeCache from 'node-cache'
-import makeWASocket, { AnyMessageContent, delay, DisconnectReason, fetchLatestBaileysVersion, getAggregateVotesInPollMessage, makeCacheableSignalKeyStore, makeInMemoryStore, proto, useMultiFileAuthState, WAMessageContent, WAMessageKey } from '../src'
+import makeWASocket, { AnyMessageContent, DEFAULT_CACHE_TTLS, delay, DisconnectReason, fetchLatestBaileysVersion, getAggregateVotesInPollMessage, JidWithDevice, makeCacheableSignalKeyStore, makeInMemoryStore, proto, useMultiFileAuthState, WAMessageContent, WAMessageKey } from '../src'
 import MAIN_LOGGER from '../src/Utils/logger'
 
 const logger = MAIN_LOGGER.child({ })
@@ -12,6 +12,12 @@ const doReplies = !process.argv.includes('--no-reply')
 // external map to store retry counts of messages when decryption/encryption fails
 // keep this out of the socket itself, so as to prevent a message decryption/encryption loop across socket restarts
 const msgRetryCounterCache = new NodeCache()
+
+const deviceCache = new NodeCache({
+	stdTTL: DEFAULT_CACHE_TTLS.USER_DEVICES,
+	useClones: false,
+	deleteOnExpire: false,
+})
 
 // the store maintains the data of the WA connection in memory
 // can be written out to a file & read from it
@@ -32,7 +38,7 @@ const startSock = async() => {
 	const sock = makeWASocket({
 		version,
 		logger,
-		printQRInTerminal: true,
+		printQRInTerminal: false,
 		auth: {
 			creds: state.creds,
 			/** caching makes the store faster to send/recv messages */
@@ -45,6 +51,7 @@ const startSock = async() => {
 		// shouldIgnoreJid: jid => isJidBroadcast(jid),
 		// implement to handle retries & poll updates
 		getMessage,
+		userDevicesCache: deviceCache
 	})
 
 	store?.bind(sock.ev)
@@ -168,8 +175,41 @@ const startSock = async() => {
 			if(events['chats.delete']) {
 				console.log('chats deleted ', events['chats.delete'])
 			}
+
+			if (events['devices.update']) {
+				const { type, devices } = events['devices.update']
+				console.log('devices updated', { type, devices })
+
+				if (type === 'add') {
+					for (const device of devices) {
+						const currentDevices = deviceCache.get<JidWithDevice[]>(device.user) ?? []
+						deviceCache.set(device.user, [...currentDevices, device])
+					}
+				}
+
+				if (type === 'remove') {
+					for (const device of devices) {
+						const currentDevices = deviceCache.get<JidWithDevice[]>(device.user) ?? []
+						deviceCache.set(device.user, currentDevices.filter(d => d.device !== device.device))
+					}
+				}
+			}
 		}
 	)
+
+	// sock.ws.on('CB:notification,type:devices', node => {
+	// 	console.log('\n\n', 'device notification', '========\n')
+	// 	console.log(JSON.stringify(node))
+	// 	console.log('\n\n')
+	// })
+
+	// setTimeout(async () => {
+	// 	// console.log(await sock.groupFetchAllParticipating())
+		
+	// 	sock.sendMessage('120363279776130958@g.us', {
+	// 		text: 'teste...'
+	// 	})
+	// }, 15000)
 
 	return sock
 

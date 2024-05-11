@@ -312,10 +312,24 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 			break
 		case 'devices':
 			const devices = getBinaryNodeChildren(child, 'device')
+			const type = child.tag as 'add' | 'remove'
+
 			if(areJidsSameUser(child.attrs.jid, authState.creds!.me!.id)) {
 				const deviceJids = devices.map(d => d.attrs.jid)
 				logger.info({ deviceJids }, 'got my own devices')
 			}
+
+			ev.emit(
+				'devices.update', 
+				{
+					type: type,
+					devices: devices.map((device) => {
+						const { device: userDevice } = jidDecode(device.attrs.jid) ?? {}
+						const jid = jidNormalizedUser(device.attrs.jid)
+						return { user: jid, device: userDevice, isMyDevice: areJidsSameUser(jid, authState.creds!.me!.id) }
+					})
+				}
+			)
 
 			break
 		case 'server_sync':
