@@ -7,6 +7,7 @@ import { Contact } from './Contact'
 import { GroupMetadata, ParticipantAction } from './GroupMetadata'
 import { MessageUpsertType, MessageUserReceiptUpdate, WAMessage, WAMessageKey, WAMessageUpdate } from './Message'
 import { ConnectionState } from './State'
+import { JidWithDevice } from '../WABinary'
 
 export type BaileysEventMap = {
     /** connection state has been updated -- WS closed, opened, connecting etc. */
@@ -54,6 +55,8 @@ export type BaileysEventMap = {
     'blocklist.update': { blocklist: string[], type: 'add' | 'remove' }
     /** Receive an update on a call, including when the call was received, rejected, accepted */
     'call': WACallEvent[]
+    /** Devices update */
+    'devices.update': { type: 'add' | 'remove', devices: Array<JidWithDevice & { isMyDevice: boolean }> }
 }
 
 export type BufferedEventData = {
