@@ -151,11 +151,16 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 			const user = jidDecode(jid)?.user
 			jid = jidNormalizedUser(jid)
 
-			const devices = userDevicesCache.get<JidWithDevice[]>(user!)
-			if(devices && useCache) {
-				deviceResults.push(...devices)
+			if (useCache) {
+				const devices = userDevicesCache.get<JidWithDevice[]>(user!)
 
-				logger.trace({ user }, 'using cache for devices')
+				if(devices) {
+					deviceResults.push(...devices)
+	
+					logger.trace({ user }, 'using cache for devices')
+				} else {
+					users.push({ tag: 'user', attrs: { jid } })
+				}
 			} else {
 				users.push({ tag: 'user', attrs: { jid } })
 			}

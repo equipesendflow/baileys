@@ -182,16 +182,22 @@ const startSock = async() => {
 
 				if (type === 'add') {
 					for (const device of devices) {
-						const currentDevices = deviceCache.get<JidWithDevice[]>(device.user) ?? []
-						deviceCache.set(device.user, [...currentDevices, device])
+						const currentDevices = deviceCache.get<JidWithDevice[]>(device.user)
+
+						if (currentDevices) {
+							deviceCache.set(device.user, [...currentDevices, device])
+						}
 					}
 				}
 
 				if (type === 'remove') {
 					for (const device of devices) {
-						const currentDevices = deviceCache.get<JidWithDevice[]>(device.user) ?? []
-						deviceCache.set(device.user, currentDevices.filter(d => d.device !== device.device))
-					}
+						const currentDevices = deviceCache.get<JidWithDevice[]>(device.user)
+
+						if (currentDevices) {
+							deviceCache.set(device.user, currentDevices.filter(d => d.device !== device.device))
+						}
+				}
 				}
 			}
 		}
