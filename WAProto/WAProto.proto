@@ -1784,6 +1784,7 @@ message StickerMetadata {
     optional uint64 fileLength = 9;
     optional float weight = 10;
     optional int64 lastStickerSentTs = 11;
+    optional bool isLottie = 12;
 }
 
 message WallpaperSettings {
@@ -2069,6 +2070,18 @@ message MuteAction {
     optional bool autoMuted = 3;
 }
 
+message NoteEditAction {
+    enum NoteType {
+        UNSTRUCTURED = 1;
+        STRUCTURED = 2;
+    }
+    optional NoteType type = 1;
+    optional string chatJid = 2;
+    optional int64 createdAt = 3;
+    optional bool deleted = 4;
+    optional string unstructuredContent = 5;
+}
+
 message NuxAction {
     optional bool acknowledged = 1;
 }
@@ -2178,6 +2191,7 @@ message StickerAction {
     optional uint64 fileLength = 8;
     optional bool isFavorite = 9;
     optional uint32 deviceIdHint = 10;
+    optional bool isLottie = 11;
 }
 
 message SubscriptionAction {
@@ -2253,6 +2267,7 @@ message SyncActionValue {
     optional WamoUserIdentifierAction wamoUserIdentifierAction = 52;
     optional PrivacySettingDisableLinkPreviewsAction privacySettingDisableLinkPreviewsAction = 53;
     optional DeviceCapabilities deviceCapabilities = 54;
+    optional NoteEditAction noteEditAction = 55;
 }
 
 message TimeFormatAction {

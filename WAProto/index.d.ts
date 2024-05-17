@@ -21238,6 +21238,9 @@ export namespace proto {
 
         /** StickerMetadata lastStickerSentTs */
         lastStickerSentTs?: (number|Long|null);
+
+        /** StickerMetadata isLottie */
+        isLottie?: (boolean|null);
     }
 
     /** Represents a StickerMetadata. */
@@ -21281,6 +21284,9 @@ export namespace proto {
 
         /** StickerMetadata lastStickerSentTs. */
         public lastStickerSentTs: (number|Long);
+
+        /** StickerMetadata isLottie. */
+        public isLottie: boolean;
 
         /**
          * Creates a new StickerMetadata instance using the specified properties.
@@ -25988,6 +25994,136 @@ export namespace proto {
         public static getTypeUrl(typeUrlPrefix?: string): string;
     }
 
+    /** Properties of a NoteEditAction. */
+    interface INoteEditAction {
+
+        /** NoteEditAction type */
+        type?: (proto.NoteEditAction.NoteType|null);
+
+        /** NoteEditAction chatJid */
+        chatJid?: (string|null);
+
+        /** NoteEditAction createdAt */
+        createdAt?: (number|Long|null);
+
+        /** NoteEditAction deleted */
+        deleted?: (boolean|null);
+
+        /** NoteEditAction unstructuredContent */
+        unstructuredContent?: (string|null);
+    }
+
+    /** Represents a NoteEditAction. */
+    class NoteEditAction implements INoteEditAction {
+
+        /**
+         * Constructs a new NoteEditAction.
+         * @param [properties] Properties to set
+         */
+        constructor(properties?: proto.INoteEditAction);
+
+        /** NoteEditAction type. */
+        public type: proto.NoteEditAction.NoteType;
+
+        /** NoteEditAction chatJid. */
+        public chatJid: string;
+
+        /** NoteEditAction createdAt. */
+        public createdAt: (number|Long);
+
+        /** NoteEditAction deleted. */
+        public deleted: boolean;
+
+        /** NoteEditAction unstructuredContent. */
+        public unstructuredContent: string;
+
+        /**
+         * Creates a new NoteEditAction instance using the specified properties.
+         * @param [properties] Properties to set
+         * @returns NoteEditAction instance
+         */
+        public static create(properties?: proto.INoteEditAction): proto.NoteEditAction;
+
+        /**
+         * Encodes the specified NoteEditAction message. Does not implicitly {@link proto.NoteEditAction.verify|verify} messages.
+         * @param message NoteEditAction message or plain object to encode
+         * @param [writer] Writer to encode to
+         * @returns Writer
+         */
+        public static encode(message: proto.INoteEditAction, writer?: $protobuf.Writer): $protobuf.Writer;
+
+        /**
+         * Encodes the specified NoteEditAction message, length delimited. Does not implicitly {@link proto.NoteEditAction.verify|verify} messages.
+         * @param message NoteEditAction message or plain object to encode
+         * @param [writer] Writer to encode to
+         * @returns Writer
+         */
+        public static encodeDelimited(message: proto.INoteEditAction, writer?: $protobuf.Writer): $protobuf.Writer;
+
+        /**
+         * Decodes a NoteEditAction message from the specified reader or buffer.
+         * @param reader Reader or buffer to decode from
+         * @param [length] Message length if known beforehand
+         * @returns NoteEditAction
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): proto.NoteEditAction;
+
+        /**
+         * Decodes a NoteEditAction message from the specified reader or buffer, length delimited.
+         * @param reader Reader or buffer to decode from
+         * @returns NoteEditAction
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): proto.NoteEditAction;
+
+        /**
+         * Verifies a NoteEditAction message.
+         * @param message Plain object to verify
+         * @returns `null` if valid, otherwise the reason why it is not
+         */
+        public static verify(message: { [k: string]: any }): (string|null);
+
+        /**
+         * Creates a NoteEditAction message from a plain object. Also converts values to their respective internal types.
+         * @param object Plain object
+         * @returns NoteEditAction
+         */
+        public static fromObject(object: { [k: string]: any }): proto.NoteEditAction;
+
+        /**
+         * Creates a plain object from a NoteEditAction message. Also converts values to other types if specified.
+         * @param message NoteEditAction
+         * @param [options] Conversion options
+         * @returns Plain object
+         */
+        public static toObject(message: proto.NoteEditAction, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+        /**
+         * Converts this NoteEditAction to JSON.
+         * @returns JSON object
+         */
+        public toJSON(): { [k: string]: any };
+
+        /**
+         * Gets the default type url for NoteEditAction
+         * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+         * @returns The default type url
+         */
+        public static getTypeUrl(typeUrlPrefix?: string): string;
+    }
+
+    namespace NoteEditAction {
+
+        /** NoteType enum. */
+        enum NoteType {
+            UNSTRUCTURED = 1,
+            STRUCTURED = 2
+        }
+    }
+
     /** Properties of a NuxAction. */
     interface INuxAction {
 
@@ -27789,6 +27925,9 @@ export namespace proto {
 
         /** StickerAction deviceIdHint */
         deviceIdHint?: (number|null);
+
+        /** StickerAction isLottie */
+        isLottie?: (boolean|null);
     }
 
     /** Represents a StickerAction. */
@@ -27829,6 +27968,9 @@ export namespace proto {
 
         /** StickerAction deviceIdHint. */
         public deviceIdHint: number;
+
+        /** StickerAction isLottie. */
+        public isLottie: boolean;
 
         /**
          * Creates a new StickerAction instance using the specified properties.
@@ -28490,6 +28632,9 @@ export namespace proto {
 
         /** SyncActionValue deviceCapabilities */
         deviceCapabilities?: (proto.IDeviceCapabilities|null);
+
+        /** SyncActionValue noteEditAction */
+        noteEditAction?: (proto.INoteEditAction|null);
     }
 
     /** Represents a SyncActionValue. */
@@ -28644,6 +28789,9 @@ export namespace proto {
 
         /** SyncActionValue deviceCapabilities. */
         public deviceCapabilities?: (proto.IDeviceCapabilities|null);
+
+        /** SyncActionValue noteEditAction. */
+        public noteEditAction?: (proto.INoteEditAction|null);
 
         /**
          * Creates a new SyncActionValue instance using the specified properties.
