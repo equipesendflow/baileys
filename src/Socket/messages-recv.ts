@@ -311,13 +311,15 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 			await handleEncryptNotification(node)
 			break
 		case 'devices':
+		
 			const devices = getBinaryNodeChildren(child, 'device')
 			const type = child.tag as 'add' | 'remove'
 
-			if(areJidsSameUser(child.attrs.jid, authState.creds!.me!.id)) {
-				const deviceJids = devices.map(d => d.attrs.jid)
-				logger.info({ deviceJids }, 'got my own devices')
-			}
+			
+
+			console.log('devices updated', { type, devices });
+			console.log(JSON.stringify(child, null, 2))
+
 
 			ev.emit(
 				'devices.update', 
@@ -326,7 +328,7 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 					devices: devices.map((device) => {
 						const { device: userDevice } = jidDecode(device.attrs.jid) ?? {}
 						const jid = jidNormalizedUser(device.attrs.jid)
-						return { user: jid, device: userDevice, isMyDevice: areJidsSameUser(jid, authState.creds!.me!.id) }
+						return { user: jid, device: userDevice }
 					})
 				}
 			)

@@ -56,7 +56,7 @@ export type BaileysEventMap = {
     /** Receive an update on a call, including when the call was received, rejected, accepted */
     'call': WACallEvent[]
     /** Devices update */
-    'devices.update': { type: 'add' | 'remove', devices: Array<JidWithDevice & { isMyDevice: boolean }> }
+    'devices.update': { type: 'add' | 'remove', devices: Array<JidWithDevice > }
 }
 
 export type BufferedEventData = {
