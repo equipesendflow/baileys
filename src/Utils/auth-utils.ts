@@ -1,6 +1,7 @@
 import { randomBytes } from 'crypto'
 import NodeCache from 'node-cache'
 import type { Logger } from 'pino'
+import { v4 as uuidv4 } from 'uuid'
 import { DEFAULT_CACHE_TTLS } from '../Defaults'
 import type { AuthenticationCreds, CacheStore, SignalDataSet, SignalDataTypeMap, SignalKeyStore, SignalKeyStoreWithTransaction, TransactionCapabilityOptions } from '../Types'
 import { Curve, signedKeyPair } from './crypto'
@@ -86,16 +87,17 @@ export const addTransactionCapability = (
 	logger: Logger,
 	{ maxCommitRetries, delayBetweenTriesMs }: TransactionCapabilityOptions
 ): SignalKeyStoreWithTransaction => {
-	let inTransaction = false
 	// number of queries made to the DB during the transaction
 	// only there for logging purposes
 	let dbQueriesInTransaction = 0
 	let transactionCache: SignalDataSet = { }
 	let mutations: SignalDataSet = { }
 
+	let transactionsInProgress = 0
+
 	return {
 		get: async(type, ids) => {
-			if(inTransaction) {
+			if(isInTransaction()) {
 				const dict = transactionCache[type]
 				const idsRequiringFetch = dict
 					? ids.filter(item => typeof dict[item] === 'undefined')
@@ -127,7 +129,7 @@ export const addTransactionCapability = (
 			}
 		},
 		set: data => {
-			if(inTransaction) {
+			if(isInTransaction()) {
 				logger.trace({ types: Object.keys(data) }, 'caching in transaction')
 				for(const key in data) {
 					transactionCache[key] = transactionCache[key] || { }
@@ -140,18 +142,18 @@ export const addTransactionCapability = (
 				return state.set(data)
 			}
 		},
-		isInTransaction: () => inTransaction,
+		isInTransaction,
 		async transaction(work) {
 			let result: Awaited<ReturnType<typeof work>>
-			// if we're already in a transaction,
-			// just execute what needs to be executed -- no commit required
-			if(inTransaction) {
-				result = await work()
-			} else {
+			transactionsInProgress += 1
+			if(transactionsInProgress === 1) {
 				logger.trace('entering transaction')
-				inTransaction = true
-				try {
-					result = await work()
+			}
+
+			try {
+				result = await work()
+				// commit if this is the outermost transaction
+				if(transactionsInProgress === 1) {
 					if(Object.keys(mutations).length) {
 						logger.trace('committing transaction')
 						// retry mechanism to ensure we've some recovery
@@ -171,15 +173,22 @@ export const addTransactionCapability = (
 					} else {
 						logger.trace('no mutations in transaction')
 					}
-				} finally {
-					inTransaction = false
+				}
+			} finally {
+				transactionsInProgress -= 1
+				if(transactionsInProgress === 0) {
 					transactionCache = { }
 					mutations = { }
 					dbQueriesInTransaction = 0
 				}
 			}
+
 			return result
 		}
+	}
+
+	function isInTransaction() {
+		return transactionsInProgress > 0
 	}
 }
 
@@ -187,6 +196,7 @@ export const initAuthCreds = (): AuthenticationCreds => {
 	const identityKey = Curve.generateKeyPair()
 	return {
 		noiseKey: Curve.generateKeyPair(),
+		pairingEphemeralKeyPair: Curve.generateKeyPair(),
 		signedIdentityKey: identityKey,
 		signedPreKey: signedKeyPair(identityKey, 1),
 		registrationId: generateRegistrationId(),
@@ -197,9 +207,19 @@ export const initAuthCreds = (): AuthenticationCreds => {
 		accountSyncCounter: 0,
 		accountSettings: {
 			unarchiveChats: false
-		}
+		},
+		// mobile creds
+		deviceId: Buffer.from(uuidv4().replace(/-/g, ''), 'hex').toString('base64url'),
+		phoneId: uuidv4(),
+		identityId: randomBytes(20),
+		registered: false,
+		backupToken: randomBytes(20),
+		registration: {} as never,
+		pairingCode: undefined,
+		lastPropHash: undefined,
 	}
 }
+
 
 export const addTransactionCapabilitySimple = (
 	state: SignalKeyStore,

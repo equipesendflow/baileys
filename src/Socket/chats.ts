@@ -641,30 +641,30 @@ export const makeChatsSocket = (config: SocketConfig) => {
 	}
 
 	/** sending abt props may fix QR scan fail if server expects */
-	const fetchAbt = async() => {
-		const abtNode = await query({
-			tag: 'iq',
-			attrs: {
-				to: S_WHATSAPP_NET,
-				xmlns: 'abt',
-				type: 'get',
-			},
-			content: [
-				{ tag: 'props', attrs: { protocol: '1' } }
-			]
-		})
+	// const fetchAbt = async() => {
+	// 	const abtNode = await query({
+	// 		tag: 'iq',
+	// 		attrs: {
+	// 			to: S_WHATSAPP_NET,
+	// 			xmlns: 'abt',
+	// 			type: 'get',
+	// 		},
+	// 		content: [
+	// 			{ tag: 'props', attrs: { protocol: '1' } }
+	// 		]
+	// 	})
 
-		const propsNode = getBinaryNodeChild(abtNode, 'props')
+	// 	const propsNode = getBinaryNodeChild(abtNode, 'props')
 
-		let props: { [_: string]: string } = { }
-		if(propsNode) {
-			props = reduceBinaryNodeToDictionary(propsNode, 'prop')
-		}
+	// 	let props: { [_: string]: string } = { }
+	// 	if(propsNode) {
+	// 		props = reduceBinaryNodeToDictionary(propsNode, 'prop')
+	// 	}
 
-		logger.debug('fetched abt')
+	// 	logger.debug('fetched abt')
 
-		return props
-	}
+	// 	return props
+	// }
 
 	/** sending non-abt props may fix QR scan fail if server expects */
 	const fetchProps = async() => {
@@ -676,7 +676,7 @@ export const makeChatsSocket = (config: SocketConfig) => {
 				type: 'get',
 			},
 			content: [
-				{ tag: 'props', attrs: { } }
+				{ tag: 'props', attrs: { protocol: '2', hash: authState?.creds?.lastPropHash || "" } }
 			]
 		})
 
@@ -684,6 +684,7 @@ export const makeChatsSocket = (config: SocketConfig) => {
 
 		let props: { [_: string]: string } = { }
 		if(propsNode) {
+			authState.creds.lastPropHash = propsNode?.attrs?.hash
 			props = reduceBinaryNodeToDictionary(propsNode, 'prop')
 		}
 
@@ -708,7 +709,7 @@ export const makeChatsSocket = (config: SocketConfig) => {
 	 * */
 	const executeInitQueries = async() => {
 		await Promise.all([
-			fetchAbt(),
+			// fetchAbt(),
 			fetchProps(),
 			fetchBlocklist(),
 			fetchPrivacySettings(),
