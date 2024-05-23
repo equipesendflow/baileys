@@ -319,11 +319,11 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 			})
 			const type = child.tag as 'add' | 'remove'
 
-			console.log('processNotification node');
-			console.log(JSON.stringify(node, null, 2))
+			// console.log('processNotification node');
+			// console.log(JSON.stringify(node, null, 2))
 			
-			console.log('devices updated', { type, devices });
-			console.log(JSON.stringify(child, null, 2))
+			// console.log('devices updated', { type, devices });
+			// console.log(JSON.stringify(child, null, 2))
 
 
 			ev.emit('devices.update', { type, devices })
