@@ -452,14 +452,25 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 						const result = await createParticipantNodes(senderKeyJids, senderKeyMsg, mediaType ? { mediatype: mediaType } : undefined)
 						shouldIncludeDeviceIdentity = shouldIncludeDeviceIdentity || result.shouldIncludeDeviceIdentity
 
-						participants.push(...result.nodes)
+						if (participant) {
+							const toNode = result.nodes[0];
+							const encNode = getBinaryNodeChild(toNode, 'enc')
+
+							if (encNode) {
+								binaryNodeContent.push(encNode)
+							}
+						} else {
+							participants.push(...result.nodes)
+						}
 					}
 
-					binaryNodeContent.push({
-						tag: 'enc',
-						attrs: { v: '2', type: 'skmsg' },
-						content: ciphertext
-					})
+					if (!participant) {
+						binaryNodeContent.push({
+							tag: 'enc',
+							attrs: { v: '2', type: 'skmsg' },
+							content: ciphertext
+						})
+					}
 
 					if (presync && !participant) {
 						authState.keys.set({ 'sender-key-memory': { [jid]: senderKeyMap } })
