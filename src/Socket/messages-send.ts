@@ -157,7 +157,7 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 				if(devices) {
 					deviceResults.push(...devices)
 	
-					logger.trace({ user }, 'using cache for devices')
+					// logger.trace({ user }, 'using cache for devices')
 				} else {
 					users.push({ tag: 'user', attrs: { jid } })
 				}
@@ -377,9 +377,6 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 
 
 							let groupData = cachedGroupMetadata ? await cachedGroupMetadata(jid) : undefined
-							if(groupData) {
-								logger.trace({ jid, participants: groupData.participants.length }, 'using cached group metadata')
-							}
 
 							if(!groupData) {
 								groupData = await groupMetadata(jid)
@@ -447,29 +444,43 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 							}
 						}
 
+						message.senderKeyDistributionMessage = senderKeyMsg.senderKeyDistributionMessage
+
 						await assertSessions(senderKeyJids, false)
 
-						const result = await createParticipantNodes(senderKeyJids, senderKeyMsg, mediaType ? { mediatype: mediaType } : undefined)
+						const result = await createParticipantNodes(senderKeyJids, participant ? message : senderKeyMsg, mediaType ? { mediatype: mediaType } : undefined)
 						shouldIncludeDeviceIdentity = shouldIncludeDeviceIdentity || result.shouldIncludeDeviceIdentity
 
-						if (participant) {
-							const toNode = result.nodes[0];
-							const encNode = getBinaryNodeChild(toNode, 'enc')
-
-							if (encNode) {
-								binaryNodeContent.push(encNode)
-							}
-						} else {
+						// if (participant || !useUserDevicesCache) {
 							participants.push(...result.nodes)
-						}
+						// }
+
+
+						// if (participant) {
+						// 	const toNode = result.nodes[0];
+						// 	const encNode = getBinaryNodeChild(toNode, 'enc')
+
+						// 	if (encNode) {
+						// 		binaryNodeContent.push(encNode)
+						// 	}
+						// } else {
+						// }
 					}
 
 					if (!participant) {
-						binaryNodeContent.push({
+						const enc: BinaryNode = {
 							tag: 'enc',
 							attrs: { v: '2', type: 'skmsg' },
 							content: ciphertext
-						})
+						}
+
+						if (mediaType) {
+							enc.attrs.mediaType = mediaType;
+						}
+
+						binaryNodeContent.push(enc)
+
+						
 					}
 
 					if (presync && !participant) {
@@ -516,7 +527,11 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 					shouldIncludeDeviceIdentity = shouldIncludeDeviceIdentity || s1 || s2
 				}
 
-				if(participants.length) {
+				if (participants.length === 1 && participant) {
+					const enc = getBinaryNodeChild(participants[0], 'enc')!
+					enc.attrs.count = `${participant.count}`;
+					binaryNodeContent.push(enc)
+				} else if(participants.length) {
 					binaryNodeContent.push({
 						tag: 'participants',
 						attrs: { },
@@ -528,7 +543,7 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 					tag: 'message',
 					attrs: {
 						id: msgId!,
-						type: 'text',
+						type: getMessageType(message),
 						...(additionalAttributes || {})
 					},
 					content: binaryNodeContent
@@ -557,7 +572,7 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 						content: encodeSignedDeviceIdentity(authState.creds.account!, true)
 					})
 
-					logger.debug({ jid }, 'adding device identity')
+					// logger.debug({ jid }, 'adding device identity')
 				}
 
 				const buttonType = getButtonType(message)
@@ -583,6 +598,19 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 		)
 
 		return msgId
+	}
+
+	const getMessageType = (message: proto.IMessage) => {
+		const mediaType = getMediaType(message)
+
+		if (mediaType) {
+			return 'media'
+		} else if (message.reactionMessage) {
+			return 'reaction'
+		}
+
+		return 'text'
+
 	}
 
 	const getMediaType = (message: proto.IMessage) => {

@@ -7,6 +7,7 @@ import { DisconnectReason, SocketConfig } from '../Types'
 import { addTransactionCapabilitySimple, bindWaitForConnectionUpdate, configureSuccessfulPairing, Curve, generateLoginNode, generateMdTagPrefix, generateRegistrationNode, getCodeFromWSError, getErrorCodeFromStreamError, getNextPreKeysNode, makeNoiseHandler, printQRIfNecessaryListener, promiseTimeout } from '../Utils'
 import { makeEventBuffer } from '../Utils/event-buffer'
 import { assertNodeErrorFree, BinaryNode, encodeBinaryNode, getBinaryNodeChild, getBinaryNodeChildren, S_WHATSAPP_NET } from '../WABinary'
+import { removeBuffer } from '../Utils/utils'
 
 /**
  * Connects to WA servers and performs:
@@ -82,10 +83,24 @@ export const makeSocket = ({
 		)
 	}
 
+	const ignoreIds: string[] = []
+
+	function shouldIgnoreFrameLog(frame: BinaryNode) {
+		if (frame.tag === 'iq' && frame.attrs.xmlns === 'w:p') return true;
+
+		if (ignoreIds.includes(frame.attrs.id)) return true;
+
+		return false;
+	}
+
 	/** send a binary node */
 	const sendNode = (frame: BinaryNode) => {
-		if(logger.level === 'trace') {
-			logger.trace({ msgId: frame.attrs.id, fromMe: true, frame }, 'communication')
+		if(logger.level === 'trace' && !shouldIgnoreFrameLog(frame)) {
+			const frameParsed = removeBuffer(frame);
+
+			logger.trace({ msgId: frame.attrs.id, fromMe: true, frame: frameParsed }, 'communication')
+		} else if (frame.attrs.id) {
+			ignoreIds.push(frame.attrs.id)
 		}
 
 		const buff = encodeBinaryNode(frame)
@@ -296,8 +311,11 @@ export const makeSocket = ({
 			if(!(frame instanceof Uint8Array)) {
 				const msgId = frame.attrs.id
 
-				if(logger.level === 'trace') {
-					logger.trace({ msgId, fromMe: false, frame }, 'communication')
+				if(logger.level === 'trace' && !shouldIgnoreFrameLog(frame)) {
+					const frameParsed = removeBuffer(frame);
+
+
+					logger.trace({ msgId, fromMe: false, frame: frameParsed }, 'communication')
 				}
 
 				/* Check if this is a response to a message we sent */

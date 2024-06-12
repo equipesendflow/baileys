@@ -111,10 +111,10 @@ export const makeEventBuffer = (logger: Logger): BaileysBufferableEventEmitter =
 
 		data = newData
 
-		logger.trace(
-			{ conditionalChatUpdatesLeft },
-			'released buffered events'
-		)
+		// logger.trace(
+		// 	{ conditionalChatUpdatesLeft },
+		// 	'released buffered events'
+		// )
 
 		return true
 	}

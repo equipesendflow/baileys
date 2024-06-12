@@ -77,7 +77,7 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 			stanza.attrs.from = authState.creds.me!.id
 		}
 
-		logger.debug({ recv: { tag, attrs }, sent: stanza.attrs }, 'sent ack')
+		// logger.debug({ recv: { tag, attrs }, sent: stanza.attrs }, 'sent ack')
 		await sendNode(stanza)
 	}
 
@@ -724,6 +724,16 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 				logger.warn({ attrs }, 'could not send message again, as it was not found')
 			}
 		}
+
+		// if(!attrs.phash) {
+		// 	logger.info({ attrs }, 'handling bad ack, no phash, resending message...')
+		// 	const msg = await getMessage(key)
+		// 	if(msg) {
+		// 		await relayMessage(key.remoteJid!, msg, { messageId: key.id!, useUserDevicesCache: false })
+		// 	} else {
+		// 		logger.warn({ attrs }, 'could not send message again, as it was not found')
+		// 	}
+		// }
 
 		// error in acknowledgement,
 		// device could not display the message
