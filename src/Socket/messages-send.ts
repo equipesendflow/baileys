@@ -543,7 +543,7 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 					tag: 'message',
 					attrs: {
 						id: msgId!,
-						type: getMessageType(message),
+						type: 'text',
 						...(additionalAttributes || {})
 					},
 					content: binaryNodeContent
