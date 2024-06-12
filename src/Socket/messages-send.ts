@@ -474,9 +474,9 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 							content: ciphertext
 						}
 
-						if (mediaType) {
-							enc.attrs.mediaType = mediaType;
-						}
+						// if (mediaType) {
+						// 	enc.attrs.mediaType = mediaType;
+						// }
 
 						binaryNodeContent.push(enc)
 
