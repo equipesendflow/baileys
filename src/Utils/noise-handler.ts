@@ -1,7 +1,7 @@
 import { Boom } from '@hapi/boom'
 import { Logger } from 'pino'
 import { proto } from '../../WAProto'
-import { NOISE_MODE, NOISE_WA_HEADER, WA_CERT_DETAILS } from '../Defaults'
+import { NOISE_MODE, WA_CERT_DETAILS } from '../Defaults'
 import { KeyPair } from '../Types'
 import { BinaryNode, decodeBinaryNode } from '../WABinary'
 import { aesDecryptGCM, aesEncryptGCM, Curve, hkdf, sha256 } from './crypto'
@@ -13,10 +13,19 @@ const generateIV = (counter: number) => {
 	return new Uint8Array(iv)
 }
 
-export const makeNoiseHandler = (
-	{ public: publicKey, private: privateKey }: KeyPair,
+export const makeNoiseHandler = ({
+	keyPair: { private: privateKey, public: publicKey },
+	NOISE_HEADER,
+	mobile,
+	logger,
+	routingInfo
+}: {
+	keyPair: KeyPair
+	NOISE_HEADER: Uint8Array
+	mobile: boolean
 	logger: Logger
-) => {
+	routingInfo?: Buffer | undefined
+}) => {
 	logger = logger.child({ class: 'ns' })
 
 	const authenticate = (data: Uint8Array) => {
@@ -86,7 +95,7 @@ export const makeNoiseHandler = (
 
 	let inBytes = Buffer.alloc(0)
 
-	authenticate(NOISE_WA_HEADER)
+	authenticate(NOISE_HEADER)
 	authenticate(publicKey)
 
 	return {
@@ -103,12 +112,17 @@ export const makeNoiseHandler = (
 			mixIntoKey(Curve.sharedKey(privateKey, decStaticContent))
 
 			const certDecoded = decrypt(serverHello!.payload!)
-			const { intermediate: certIntermediate } = proto.CertChain.decode(certDecoded)
 
-			const { issuerSerial } = proto.CertChain.NoiseCertificate.Details.decode(certIntermediate!.details!)
+			if(mobile) {
+				proto.CertChain.NoiseCertificate.decode(certDecoded)
+			} else {
+				const { intermediate: certIntermediate } = proto.CertChain.decode(certDecoded)
 
-			if(issuerSerial !== WA_CERT_DETAILS.SERIAL) {
-				throw new Boom('certification match failed', { statusCode: 400 })
+				const { issuerSerial } = proto.CertChain.NoiseCertificate.Details.decode(certIntermediate!.details!)
+
+				if(issuerSerial !== WA_CERT_DETAILS.SERIAL) {
+					throw new Boom('certification match failed', { statusCode: 400 })
+				}
 			}
 
 			const keyEnc = encrypt(noiseKey.public)
@@ -121,11 +135,25 @@ export const makeNoiseHandler = (
 				data = encrypt(data)
 			}
 
-			const introSize = sentIntro ? 0 : NOISE_WA_HEADER.length
+			let header: Buffer
+
+			if(routingInfo) {
+				header = Buffer.alloc(7)
+				header.write('ED', 0, 'utf8')
+				header.writeUint8(0, 2)
+				header.writeUint8(1, 3)
+				header.writeUint8(routingInfo.byteLength >> 16, 4)
+				header.writeUint16BE(routingInfo.byteLength & 65535, 5)
+				header = Buffer.concat([header, routingInfo, NOISE_HEADER])
+			} else {
+				header = Buffer.from(NOISE_HEADER)
+			}
+
+			const introSize = sentIntro ? 0 : header.length
 			const frame = Buffer.alloc(introSize + 3 + data.byteLength)
 
 			if(!sentIntro) {
-				frame.set(NOISE_WA_HEADER)
+				frame.set(header)
 				sentIntro = true
 			}
 

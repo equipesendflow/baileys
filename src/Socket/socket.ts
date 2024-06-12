@@ -2,7 +2,7 @@ import { Boom } from '@hapi/boom'
 import { promisify } from 'util'
 import WebSocket from 'ws'
 import { proto } from '../../WAProto'
-import { DEF_CALLBACK_PREFIX, DEF_TAG_PREFIX, DEFAULT_ORIGIN, INITIAL_PREKEY_COUNT, MIN_PREKEY_COUNT } from '../Defaults'
+import { DEF_CALLBACK_PREFIX, DEF_TAG_PREFIX, DEFAULT_ORIGIN, INITIAL_PREKEY_COUNT, MIN_PREKEY_COUNT, NOISE_WA_HEADER } from '../Defaults'
 import { DisconnectReason, SocketConfig } from '../Types'
 import { addTransactionCapabilitySimple, bindWaitForConnectionUpdate, configureSuccessfulPairing, Curve, generateLoginNode, generateMdTagPrefix, generateRegistrationNode, getCodeFromWSError, getErrorCodeFromStreamError, getNextPreKeysNode, makeNoiseHandler, printQRIfNecessaryListener, promiseTimeout } from '../Utils'
 import { makeEventBuffer } from '../Utils/event-buffer'
@@ -32,7 +32,14 @@ export const makeSocket = ({
 	options,
 	makeSignalRepository
 }: SocketConfig) => {
-	const ws = new WebSocket(waWebSocketUrl, undefined, {
+
+	let url = typeof waWebSocketUrl === 'string' ? new URL(waWebSocketUrl) : waWebSocketUrl
+
+	if(url.protocol === 'wss' && authState?.creds?.routingInfo) {
+		url.searchParams.append('ED', authState.creds.routingInfo.toString('base64url'))
+	}
+
+	const ws = new WebSocket(url, undefined, {
 		origin: DEFAULT_ORIGIN,
 		headers: options.headers as {},
 		handshakeTimeout: connectTimeoutMs,
@@ -45,7 +52,13 @@ export const makeSocket = ({
 	/** ephemeral key pair used to encrypt/decrypt communication. Unique for each connection */
 	const ephemeralKeyPair = Curve.generateKeyPair()
 	/** WA noise protocol wrapper */
-	const noise = makeNoiseHandler(ephemeralKeyPair, logger)
+	const noise = makeNoiseHandler({
+		keyPair: ephemeralKeyPair,
+		NOISE_HEADER: NOISE_WA_HEADER,
+		mobile: false,
+		logger,
+		routingInfo: authState?.creds?.routingInfo
+	})
 
 	const { creds } = authState
 	// add transaction capability
@@ -606,6 +619,15 @@ export const makeSocket = ({
 
 	ws.on('CB:ib,,downgrade_webclient', () => {
 		end(new Boom('Multi-device beta not joined', { statusCode: DisconnectReason.multideviceMismatch }))
+	})
+
+	ws.on('CB:ib,,edge_routing', (node: BinaryNode) => {
+		const edgeRoutingNode = getBinaryNodeChild(node, 'edge_routing')
+		const routingInfo = getBinaryNodeChild(edgeRoutingNode, 'routing_info')
+		if(routingInfo?.content) {
+			authState.creds.routingInfo = Buffer.from(routingInfo?.content as Uint8Array)
+			ev.emit('creds.update', authState.creds)
+		}
 	})
 
 	let didStartBuffer = false
