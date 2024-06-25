@@ -5,7 +5,7 @@ import type { Logger } from 'pino'
 import type { URL } from 'url'
 import { proto } from '../../WAProto'
 import { AuthenticationState, SignalAuthState, TransactionCapabilityOptions } from './Auth'
-import { MediaConnInfo } from './Message'
+import { GroupMetadataParticipants, MediaConnInfo } from './Message'
 import { SignalRepository } from './Signal'
 
 export type WAVersion = [number, number, number]
@@ -109,6 +109,9 @@ export type SocketConfig = {
 
     /** options for axios */
     options: AxiosRequestConfig<{}>
+    cachedGroupMetadata?: (jid: string, force?: boolean) => Promise<GroupMetadataParticipants | undefined>;
+
+    
     /**
      * fetch a message from your store
      * implement this so that messages failed to send

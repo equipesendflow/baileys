@@ -18,6 +18,7 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 		generateHighQualityLinkPreview,
 		options: axiosOptions,
 		patchMessageBeforeSending,
+		cachedGroupMetadata
 	} = config
 	const sock = makeGroupsSocket(config)
 	const {
@@ -31,7 +32,7 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 		generateMessageTag,
 		sendNode,
 		groupMetadata,
-		groupToggleEphemeral
+		groupToggleEphemeral,
 	} = sock
 
 	const userDevicesCache = config.userDevicesCache || new NodeCache({
@@ -327,7 +328,7 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 	const relayMessage = async(
 		jid: string,
 		message: proto.IMessage,
-		{ messageId: msgId, participant, additionalAttributes, useUserDevicesCache, cachedGroupMetadata }: MessageRelayOptions
+		{ messageId: msgId, participant, additionalAttributes, useUserDevicesCache }: MessageRelayOptions
 	) => {
 		const meId = authState.creds.me!.id
 
@@ -376,7 +377,8 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 							if(participant) return;
 
 
-							let groupData = cachedGroupMetadata ? await cachedGroupMetadata(jid) : undefined
+
+							let groupData = cachedGroupMetadata ? await cachedGroupMetadata(jid, !useUserDevicesCache) : undefined
 
 							if(!groupData) {
 								groupData = await groupMetadata(jid)
@@ -416,8 +418,6 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 					])
 	
 						
-
-					
 
 					
 
