@@ -4,7 +4,9 @@ import { AuthenticationCreds } from './Auth'
 import { WACallEvent } from './Call'
 import { Chat, ChatUpdate, PresenceData } from './Chat'
 import { Contact } from './Contact'
-import { GroupMetadata, ParticipantAction } from './GroupMetadata'
+import { GroupMetadata, ParticipantAction, RequestJoinAction, RequestJoinMethod } from './GroupMetadata'
+import { Label } from './Label'
+import { LabelAssociation } from './LabelAssociation'
 import { MessageUpsertType, MessageUserReceiptUpdate, WAMessage, WAMessageKey, WAMessageUpdate } from './Message'
 import { ConnectionState } from './State'
 import { JidWithDevice } from '../WABinary'
@@ -25,6 +27,7 @@ export type BaileysEventMap = {
     'chats.upsert': Chat[]
     /** update the given chats */
     'chats.update': ChatUpdate[]
+    'chats.phoneNumberShare': {lid: string, jid: string}
     /** delete chats with given ID */
     'chats.delete': string[]
     /** presence of contact in a chat updated */
@@ -49,7 +52,8 @@ export type BaileysEventMap = {
     'groups.upsert': GroupMetadata[]
     'groups.update': Partial<GroupMetadata>[]
     /** apply an action to participants in a group */
-    'group-participants.update': { id: string, participants: string[], action: ParticipantAction }
+    'group-participants.update': { id: string, author: string, participants: string[], action: ParticipantAction }
+    'group.join-request': { id: string, author: string, participant: string, action: RequestJoinAction, method: RequestJoinMethod }
 
     'blocklist.set': { blocklist: string[] }
     'blocklist.update': { blocklist: string[], type: 'add' | 'remove' }
@@ -57,6 +61,9 @@ export type BaileysEventMap = {
     'call': WACallEvent[]
     /** Devices update */
     'devices.update': { type: 'add' | 'remove', devices: Array<JidWithDevice > }
+    
+    'labels.edit': Label
+    'labels.association': { association: LabelAssociation, type: 'add' | 'remove' }
 }
 
 export type BufferedEventData = {
