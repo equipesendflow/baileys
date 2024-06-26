@@ -169,6 +169,10 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 
 		// logger.info(`${users.length} users`)
 
+		if(!users.length) {
+			return deviceResults
+		}
+
 
 		const deviceMap: { [_: string]: JidWithDevice[] } = {}
 
