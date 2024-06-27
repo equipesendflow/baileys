@@ -79,7 +79,6 @@
   "devDependencies": {
     "@adiwajshing/eslint-config": "git+https://github.com/adiwajshing/eslint-config",
     "@adiwajshing/keyed-db": "^0.2.4",
-    "@types/base64-url": "^2.2.2",
     "@types/got": "^9.6.12",
     "@types/jest": "^29.4.0",
     "@types/lodash": "^4.14.191",
