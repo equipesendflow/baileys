@@ -20,6 +20,11 @@ export const jidEncode = (user: string | number | null, server: JidServer, devic
 	return `${user || ''}${!!agent ? `_${agent}` : ''}${!!device ? `:${device}` : ''}@${server}`
 }
 
+export const jidEncodeADString = (user: string | number | null, server: JidServer, device?: number, agent?: number) => {
+	return `${user || ''}${ `.${agent || 0}` }${ `:${device || 0}`}@${server}`
+}
+
+
 export const jidDecode = (jid: string | undefined): FullJid | undefined => {
 	const sepIdx = typeof jid === 'string' ? jid.indexOf('@') : -1
 	if(sepIdx < 0) {

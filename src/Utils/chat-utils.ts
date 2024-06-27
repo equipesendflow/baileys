@@ -3,11 +3,12 @@ import { AxiosRequestConfig } from 'axios'
 import type { Logger } from 'pino'
 import { proto } from '../../WAProto'
 import { BaileysEventEmitter, Chat, ChatModification, ChatMutation, ChatUpdate, Contact, InitialAppStateSyncOptions, LastMessageList, LTHashState, WAPatchCreate, WAPatchName } from '../Types'
-import { BinaryNode, getBinaryNodeChild, getBinaryNodeChildren, isJidGroup, jidNormalizedUser } from '../WABinary'
-import { aesDecrypt, aesEncrypt, hkdf, hmacSign } from './crypto'
+import { BinaryNode, getBinaryNodeChild, getBinaryNodeChildren, isJidGroup, jidEncode, jidEncodeADString, jidNormalizedUser, JidWithDevice } from '../WABinary'
+import { aesDecrypt, aesEncrypt, hkdf, hmacSign, sha256 } from './crypto'
 import { toNumber } from './generics'
 import { LT_HASH_ANTI_TAMPERING } from './lt-hash'
 import { downloadContentFromMessage, } from './messages-media'
+import crypto from 'crypto';
 
 type FetchAppStateSyncKey = (keyId: string) => Promise<proto.IAppStateSyncKeyData | null | undefined>
 
@@ -751,4 +752,38 @@ export const processSyncAction = (
 		const chatLastMsgTimestamp = chat?.lastMessageRecvTimestamp || 0
 		return lastMsgTimestamp >= chatLastMsgTimestamp
 	}
+}
+
+
+// func participantListHashV2(participants []types.JID) string {
+// 	participantsStrings := make([]string, len(participants))
+// 	for i, part := range participants {
+// 		participantsStrings[i] = part.ADString()
+// 	}
+
+// 	sort.Strings(participantsStrings)
+// 	hash := sha256.Sum256([]byte(strings.Join(participantsStrings, "")))
+// 	return fmt.Sprintf("2:%s", base64.RawStdEncoding.EncodeToString(hash[:6]))
+// }
+
+
+export function participantListHashV2(participants: JidWithDevice[]): string {
+	const participantsStrings = participants.map(part => jidEncodeADString(part.user, 's.whatsapp.net', part.device)).sort();
+
+	const hash =sha256(participantsStrings.join(""))
+
+	// const base64Hash = hash.slice(0, 6).toString('base64')
+	// return "2:" + encodeBase64(hash.slice(0, 6))
+
+	return "2:" +  hash.slice(0, 6).toString('base64')
+
+	// Cria um hash SHA-256 das strings concatenadas
+	// const hash = crypto.createHash('sha256').update(participantsStrings.join('')).digest();
+
+	// // Codifica os primeiros 6 bytes do hash em base64 (URL Safe)
+	// // const base64Hash = base64url.encode(hash.slice(0, 6).toString());
+	// const base64Hash = hash.slice(0, 6).toString('base64').replace(/=+$/, '').replace(/\+/g, '-').replace(/\//g, '_');
+
+	// // Retorna a string no formato requerido
+	// return `2:${base64Hash}`;
 }

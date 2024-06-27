@@ -113,7 +113,7 @@ export function hmacSign(buffer: Buffer | Uint8Array, key: Buffer | Uint8Array, 
 	return createHmac(variant, key).update(buffer).digest()
 }
 
-export function sha256(buffer: Buffer) {
+export function sha256(buffer: Buffer | string) {
 	return createHash('sha256').update(buffer).digest()
 }
 
