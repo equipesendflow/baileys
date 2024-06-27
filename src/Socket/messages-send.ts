@@ -334,7 +334,10 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 		message: proto.IMessage,
 		{ messageId: msgId, participant, additionalAttributes, useUserDevicesCache }: MessageRelayOptions
 	) => {
+		if (!jid) return;
+
 		const meId = authState.creds.me!.id
+
 		const { user: myUser, device: myDevice } = jidDecode(meId)!
 
 		const presync = true;
@@ -510,6 +513,10 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 					const meJids: string[] = []
 					const otherJids: string[] = []
 					for(const { user, device } of devices) {
+
+						if (user === myUser && device === myDevice) continue;
+
+						
 						const jid = jidEncode(user, 's.whatsapp.net', device)
 						const isMe = user === meUser
 						if(isMe) {
