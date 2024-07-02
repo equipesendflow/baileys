@@ -116,6 +116,7 @@ export type AnyMediaMessageContent = (
         caption?: string
         gifPlayback?: boolean
         jpegThumbnail?: string
+        ptv?: boolean
     } & Mentionable & Contextable & Buttonable & Templatable & WithDimensions)
     | {
         audio: WAMediaUpload

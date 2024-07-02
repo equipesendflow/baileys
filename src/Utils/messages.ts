@@ -32,6 +32,7 @@ type MediaUploadData = {
 	media: WAMediaUpload
 	caption?: string
 	ptt?: boolean
+	ptv?: boolean
 	seconds?: number
 	gifPlayback?: boolean
 	fileName?: string
@@ -261,6 +262,11 @@ export const prepareWAMessageMedia = async(
 		)
 	})
 
+	if(uploadData.ptv) {
+		obj.ptvMessage = obj.videoMessage
+		delete obj.videoMessage
+	}
+
 	if(cacheableKey) {
 		logger?.debug({ cacheableKey }, 'set cache')
 		options.mediaCache!.set(cacheableKey, WAProto.Message.encode(obj).finish())
@@ -432,6 +438,12 @@ export const generateWAMessageContent = async(
 			}
 			break
 		}
+	} else if('ptv' in message && message.ptv) {
+		const { videoMessage } = await prepareWAMessageMedia(
+			{ video: message.video },
+			options
+		)
+		m.ptvMessage = videoMessage
 	} else if('product' in message) {
 		const { imageMessage } = await prepareWAMessageMedia(
 			{ image: message.product.productImage },
