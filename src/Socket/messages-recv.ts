@@ -581,6 +581,7 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 							...(msg.key || {})
 						}
 						msg.participant ??= node.attrs.participant
+						msg.pushName ??= node.attrs.notify
 						msg.messageTimestamp = +node.attrs.t
 
 						const fullMsg = proto.WebMessageInfo.fromObject(msg)
