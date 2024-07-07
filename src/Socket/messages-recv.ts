@@ -3,10 +3,10 @@ import NodeCache from 'node-cache'
 import { proto } from '../../WAProto'
 import { DEFAULT_CACHE_TTLS, KEY_BUNDLE_TYPE, MIN_PREKEY_COUNT } from '../Defaults'
 import { DisconnectReason, MessageReceiptType, MessageRelayOptions, MessageUserReceipt, SocketConfig, WACallEvent, WAMessageKey, WAMessageStatus, WAMessageStubType, WAPatchName } from '../Types'
-import { decodeMediaRetryNode, decryptMessageNode, delay, encodeBigEndian, encodeSignedDeviceIdentity, getCallStatusFromNode, getHistoryMsg, getNextPreKeys, getStatusFromReceiptType, unixTimestampSeconds, xmppPreKey, xmppSignedPreKey } from '../Utils'
+import { decodeMediaRetryNode, decryptMessageNode, delay, encodeBigEndian, encodeSignedDeviceIdentity, getCallStatusFromNode, getHistoryMsg, getNextPreKeys, getStatusFromReceiptType, participantListHashV2, unixTimestampSeconds, xmppPreKey, xmppSignedPreKey } from '../Utils'
 import { makeMutex } from '../Utils/make-mutex'
 import { cleanMessage } from '../Utils/process-message'
-import { areJidsSameUser, BinaryNode, getAllBinaryNodeChildren, getBinaryNodeChild, getBinaryNodeChildren, isJidGroup, isJidUser, jidDecode, jidNormalizedUser, S_WHATSAPP_NET } from '../WABinary'
+import { areJidsSameUser, BinaryNode, getAllBinaryNodeChildren, getBinaryNodeChild, getBinaryNodeChildren, isJidGroup, isJidUser, jidDecode, jidNormalizedUser, JidWithDevice, S_WHATSAPP_NET } from '../WABinary'
 import { extractGroupMetadata } from './groups'
 import { makeMessagesSocket } from './messages-send'
 import { Boom } from '@hapi/boom'
@@ -317,22 +317,58 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 			await handleEncryptNotification(node)
 			break
 		case 'devices':
+
+		const deviceCache = config.userDevicesCache
+
+		if (!deviceCache) return;
+
 			const rawDevices = getBinaryNodeChildren(child, 'device')
-			const devices = rawDevices.map((device) => {
-				const { device: userDevice } = jidDecode(device.attrs.jid) ?? {}
-				const jid = jidNormalizedUser(device.attrs.jid)
-				return { user: jid, device: userDevice }
-			})
+			// const lid = node.attrs.lid
 			const type = child.tag as 'add' | 'remove'
+			const device_hash = child.attrs.device_hash
 
-			// console.log('processNotification node');
-			// console.log(JSON.stringify(node, null, 2))
-			
-			// console.log('devices updated', { type, devices });
-			// console.log(JSON.stringify(child, null, 2))
+			// ev.emit('devices.update', { type, device_hash, from, lid, devices })
+			const user = jidDecode(from)?.user;
+
+			if (!user) return;
+
+			const currentDevices = deviceCache.get<JidWithDevice[]>(user);
+
+			if (!currentDevices?.length) return;
 
 
-			ev.emit('devices.update', { type, devices })
+			for (const rawDevice of rawDevices) {
+				const item = jidDecode(rawDevice.attrs.jid)
+
+				if (!item) break;
+
+				if (type === 'add') {
+					currentDevices.push(item)
+				}
+
+				if (type === 'remove') {
+					const index = currentDevices.findIndex(d => d.device === item.device)
+
+					if (index >= 0) {
+						currentDevices.splice(index, 1)
+					}
+				}
+			}
+
+			const new_dhash = participantListHashV2(currentDevices);
+
+			// console.log('new_dhash', new_dhash);
+			// console.log('device_hash', device_hash);
+			// console.log('device_hash !== new_dhash', device_hash !== new_dhash);
+
+			logger.info(`update device cache device_hash: ${device_hash} new_dhash: ${new_dhash}`)
+
+			if (device_hash !== new_dhash) {
+				deviceCache.del(user);
+			} else {
+				deviceCache.set(user, currentDevices);
+
+			}
 
 			break
 		case 'server_sync':
@@ -386,6 +422,27 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 				})
 			}
 
+			if (child.tag === 'devices') {
+				const user = jidDecode(from)?.user!
+	
+				const rawDevices = getBinaryNodeChildren(child, 'device')
+				const devices = rawDevices.map((item) => {
+					return jidDecode(item.attrs.jid)!;
+				})
+
+
+				const dhash = child.attrs.dhash
+				
+				const userDevicesCache = config.userDevicesCache
+
+				if (!userDevicesCache) return;
+
+				logger.info(`set account user device cache dhash: ${dhash}`)
+
+				userDevicesCache.set(user, devices)
+
+			}
+
 			break
 		}
 
@@ -393,6 +450,8 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 			return result
 		}
 	}
+
+
 
 	const willSendMessageAgain = (id: string, participant: string) => {
 		const key = `${id}:${participant}`
@@ -843,3 +902,5 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 		rejectCall
 	}
 }
+
+

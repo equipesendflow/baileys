@@ -60,7 +60,7 @@ export type BaileysEventMap = {
     /** Receive an update on a call, including when the call was received, rejected, accepted */
     'call': WACallEvent[]
     /** Devices update */
-    'devices.update': { type: 'add' | 'remove', devices: Array<JidWithDevice > }
+    // 'devices.update': { type: 'add' | 'remove', device_hash: string, devices: Array<{jid:string, lid: string}>, from: string, lid:string }
     
     'labels.edit': Label
     'labels.association': { association: LabelAssociation, type: 'add' | 'remove' }

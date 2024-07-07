@@ -176,30 +176,30 @@ const startSock = async() => {
 				console.log('chats deleted ', events['chats.delete'])
 			}
 
-			if (events['devices.update']) {
-				const { type, devices } = events['devices.update']
-				console.log('devices updated', { type, devices })
+			// if (events['devices.update']) {
+			// 	const { type, devices } = events['devices.update']
+			// 	console.log('devices updated', { type, devices })
 
-				if (type === 'add') {
-					for (const device of devices) {
-						const currentDevices = deviceCache.get<JidWithDevice[]>(device.user)
+			// 	if (type === 'add') {
+			// 		for (const device of devices) {
+			// 			const currentDevices = deviceCache.get<JidWithDevice[]>(device.user)
 
-						if (currentDevices) {
-							deviceCache.set(device.user, [...currentDevices, device])
-						}
-					}
-				}
+			// 			if (currentDevices) {
+			// 				deviceCache.set(device.user, [...currentDevices, device])
+			// 			}
+			// 		}
+			// 	}
 
-				if (type === 'remove') {
-					for (const device of devices) {
-						const currentDevices = deviceCache.get<JidWithDevice[]>(device.user)
+			// 	if (type === 'remove') {
+			// 		for (const device of devices) {
+			// 			const currentDevices = deviceCache.get<JidWithDevice[]>(device.user)
 
-						if (currentDevices) {
-							deviceCache.set(device.user, currentDevices.filter(d => d.device !== device.device))
-						}
-				}
-				}
-			}
+			// 			if (currentDevices) {
+			// 				deviceCache.set(device.user, currentDevices.filter(d => d.device !== device.device))
+			// 			}
+			// 	}
+			// 	}
+			// }
 		}
 	)
 

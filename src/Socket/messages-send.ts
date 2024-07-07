@@ -10,6 +10,7 @@ import { areJidsSameUser, BinaryNode, BinaryNodeAttributes, getBinaryNodeChild, 
 import { makeGroupsSocket } from './groups'
 import ListType = proto.ListMessage.ListType;
 import { makeCallbackPartitions } from '../Utils/utils'
+import { WebSocket } from 'ws'
 
 export const makeMessagesSocket = (config: SocketConfig) => {
 	const {
