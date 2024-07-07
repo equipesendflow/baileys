@@ -717,35 +717,36 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 		await sendMessageAck(node)
 	}
 
-	const handleBadAck = async({ attrs }: BinaryNode) => {
+	const handleBadAck = async(node: BinaryNode) => {
+		const { attrs } = node;
 		const key: WAMessageKey = { remoteJid: attrs.from, fromMe: true, id: attrs.id }
 		// current hypothesis is that if pash is sent in the ack
 		// it means -- the message hasn't reached all devices yet
 		// we'll retry sending the message here
 		if(attrs.phash) {
-			logger.info({ attrs }, 'received phash in ack, resending message...')
+			logger.error(node, 'received phash in ack, resending message...')
 			const msg = await getMessage(key)
 			if(msg) {
 				await relayMessage(key.remoteJid!, msg, { messageId: key.id!, useUserDevicesCache: false })
 			} else {
-				logger.warn({ attrs }, 'could not send message again, as it was not found')
+				logger.error(node, 'could not send message again, as it was not found')
 			}
 		}
 
 		// if(!attrs.phash) {
-		// 	logger.info({ attrs }, 'handling bad ack, no phash, resending message...')
+		// 	logger.info(node, 'handling bad ack, no phash, resending message...')
 		// 	const msg = await getMessage(key)
 		// 	if(msg) {
 		// 		await relayMessage(key.remoteJid!, msg, { messageId: key.id!, useUserDevicesCache: false })
 		// 	} else {
-		// 		logger.warn({ attrs }, 'could not send message again, as it was not found')
+		// 		logger.warn(node, 'could not send message again, as it was not found')
 		// 	}
 		// }
 
 		// error in acknowledgement,
 		// device could not display the message
 		if(attrs.error) {
-			logger.warn({ attrs }, 'received error in ack')
+			logger.error(node, 'received error in ack')
 			ev.emit(
 				'messages.update',
 				[
