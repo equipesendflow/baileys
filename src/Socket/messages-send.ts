@@ -213,6 +213,8 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 					],
 				}
 
+				if (sock.ws.readyState !== WebSocket.OPEN) return;
+
 				const result = await query(iq)
 				const extracted = extractDeviceJids(result, authState.creds.me!.id, ignoreZeroDevices)
 	
