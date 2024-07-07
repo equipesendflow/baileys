@@ -362,8 +362,8 @@ export const makeSocket = ({
 		closed = true
 
 		if (!silent) {
-			logger.info(
-				{ trace: error?.stack },
+			logger.error(
+				error,
 				error ? 'connection errored' : 'connection closed'
 			)
 		}
