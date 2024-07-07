@@ -318,56 +318,68 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 			break
 		case 'devices':
 
-		const deviceCache = config.userDevicesCache
+			const deviceCache = config.userDevicesCache
 
-		if (!deviceCache) return;
+			if (!deviceCache) return;
 
-			const rawDevices = getBinaryNodeChildren(child, 'device')
-			// const lid = node.attrs.lid
-			const type = child.tag as 'add' | 'remove'
-			const device_hash = child.attrs.device_hash
-
-			// ev.emit('devices.update', { type, device_hash, from, lid, devices })
 			const user = jidDecode(from)?.user;
 
 			if (!user) return;
 
-			const currentDevices = deviceCache.get<JidWithDevice[]>(user);
+			const children = getAllBinaryNodeChildren(node)
 
-			if (!currentDevices?.length) return;
+			for (const child of children) {
+				const type = child.tag as 'add' | 'remove' | 'update'
 
+				if (type !== 'add' && type !== 'remove') {
+					// logger.info(`Unknown device list change tag ${type}`)
 
-			for (const rawDevice of rawDevices) {
-				const item = jidDecode(rawDevice.attrs.jid)
-
-				if (!item) break;
-
-				if (type === 'add') {
-					currentDevices.push(item)
+					deviceCache.del(user);
+					return;
 				}
 
-				if (type === 'remove') {
-					const index = currentDevices.findIndex(d => d.device === item.device)
+				const device_hash = child.attrs.device_hash
 
-					if (index >= 0) {
-						currentDevices.splice(index, 1)
+				const rawDevices = getBinaryNodeChildren(child, 'device')
+
+
+				const currentDevices = deviceCache.get<JidWithDevice[]>(user);
+
+				if (!currentDevices?.length) return;
+
+
+				for (const rawDevice of rawDevices) {
+					const item = jidDecode(rawDevice.attrs.jid)
+
+					if (!item) break;
+
+					if (type === 'add') {
+						currentDevices.push(item)
+					}
+
+					if (type === 'remove') {
+						const index = currentDevices.findIndex(d => d.device === item.device)
+
+						if (index >= 0) {
+							currentDevices.splice(index, 1)
+						}
 					}
 				}
-			}
 
-			const new_dhash = participantListHashV2(currentDevices);
+				const new_dhash = participantListHashV2(currentDevices);
 
-			// console.log('new_dhash', new_dhash);
-			// console.log('device_hash', device_hash);
-			// console.log('device_hash !== new_dhash', device_hash !== new_dhash);
+				// console.log('new_dhash', new_dhash);
+				// console.log('device_hash', device_hash);
+				// console.log('device_hash !== new_dhash', device_hash !== new_dhash);
 
-			logger.info(`update device cache device_hash: ${device_hash} new_dhash: ${new_dhash}`)
+				logger.info(`update device cache device_hash: ${device_hash} new_dhash: ${new_dhash}`)
 
-			if (device_hash !== new_dhash) {
-				deviceCache.del(user);
-			} else {
-				deviceCache.set(user, currentDevices);
+				if (device_hash !== new_dhash) {
+					deviceCache.del(user);
+				} else {
+					deviceCache.set(user, currentDevices);
 
+				}
 			}
 
 			break
