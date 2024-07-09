@@ -333,6 +333,7 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 
 				if (type !== 'add' && type !== 'remove') {
 					// logger.info(`Unknown device list change tag ${type}`)
+					logger.error(`CB:notification devices type ${type} del user cache`)
 
 					deviceCache.del(user);
 					return;
@@ -368,16 +369,11 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 
 				const new_dhash = participantListHashV2(currentDevices);
 
-				// console.log('new_dhash', new_dhash);
-				// console.log('device_hash', device_hash);
-				// console.log('device_hash !== new_dhash', device_hash !== new_dhash);
-
-
 				if (device_hash !== new_dhash) {
-					logger.error(`update device cache device_hash: ${device_hash} new_dhash: ${new_dhash}`)
+					logger.error(`CB:notification devices hash: ${device_hash} new hash: ${new_dhash} del user cache`)
 					deviceCache.del(user);
 				} else {
-					logger.info(`update device cache device_hash: ${device_hash} new_dhash: ${new_dhash}`)
+					logger.info(`CB:notification devices hash: ${device_hash} new hash: ${new_dhash} update user cache`)
 					deviceCache.set(user, currentDevices);
 				}
 			}
