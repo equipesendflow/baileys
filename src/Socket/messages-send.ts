@@ -382,12 +382,10 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 				const mediaType = getMediaType(message)
 
 				if(isGroup) {
-					const [_groupData, senderKeyMap, { ciphertext, senderKeyDistributionMessage }] = await Promise.all([
+					const [_, senderKeyMap, { ciphertext, senderKeyDistributionMessage }] = await Promise.all([
 						(async() => {
 							if (!presync) return;
-							if(participant) return;
-
-
+							if (participant) return;
 
 							let groupData = cachedGroupMetadata ? await cachedGroupMetadata(jid, !useUserDevicesCache) : undefined
 
@@ -395,15 +393,10 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 								groupData = await groupMetadata(jid)
 							}
 
+							const participantsList = groupData.participants.map(p => p.id)
+							const additionalDevices = await getUSyncDevices(participantsList, !!useUserDevicesCache, false)
+							devices.push(...additionalDevices)
 
-							if(!participant) {
-								const participantsList = groupData.participants.map(p => p.id)
-								const additionalDevices = await getUSyncDevices(participantsList, !!useUserDevicesCache, false)
-								devices.push(...additionalDevices)
-							}
-
-
-							return groupData
 						})(),
 						(async() => {
 							if(!participant && presync) {
@@ -466,20 +459,7 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 						const result = await createParticipantNodes(senderKeyJids, participant ? message : senderKeyMsg, mediaType ? { mediatype: mediaType } : undefined)
 						shouldIncludeDeviceIdentity = shouldIncludeDeviceIdentity || result.shouldIncludeDeviceIdentity
 
-						// if (participant || !useUserDevicesCache) {
-							participants.push(...result.nodes)
-						// }
-
-
-						// if (participant) {
-						// 	const toNode = result.nodes[0];
-						// 	const encNode = getBinaryNodeChild(toNode, 'enc')
-
-						// 	if (encNode) {
-						// 		binaryNodeContent.push(encNode)
-						// 	}
-						// } else {
-						// }
+						participants.push(...result.nodes)
 					}
 
 					if (!participant) {
@@ -489,13 +469,7 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 							content: ciphertext
 						}
 
-						// if (mediaType) {
-						// 	enc.attrs.mediaType = mediaType;
-						// }
-
 						binaryNodeContent.push(enc)
-
-						
 					}
 
 					if (presync && !participant) {
