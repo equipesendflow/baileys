@@ -335,9 +335,12 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 	const relayMessage = async(
 		jid: string,
 		message: proto.IMessage,
-		{ messageId: msgId, participant, additionalAttributes, useUserDevicesCache }: MessageRelayOptions
+		options: MessageRelayOptions,
+		restarts = 0
 	) => {
 		if (!jid) return;
+
+		let { messageId: msgId, participant, additionalAttributes, useUserDevicesCache } = options;
 
 		const meId = authState.creds.me!.id
 
@@ -377,6 +380,10 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 			devices.push({ user, device })
 		}
 
+		let lastGroupDataUpdate: number | null = null;
+
+		let phash: string | null = null;
+
 		await authState.keys.transaction(
 			async() => {
 				const mediaType = getMediaType(message)
@@ -386,16 +393,23 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 						(async() => {
 							if (!presync) return;
 							if (participant) return;
+							if (!cachedGroupMetadata) return;
 
-							let groupData = cachedGroupMetadata ? await cachedGroupMetadata(jid, !useUserDevicesCache) : undefined
+							const groupData = await cachedGroupMetadata(jid, !useUserDevicesCache) 
 
-							if(!groupData) {
-								groupData = await groupMetadata(jid)
+							if (!groupData) {
+								throw new Error('groupData not found.')
 							}
 
+							lastGroupDataUpdate = groupData.participantsUpdatedAt || null;
+
 							const participantsList = groupData.participants.map(p => p.id)
+
 							const additionalDevices = await getUSyncDevices(participantsList, !!useUserDevicesCache, false)
+
 							devices.push(...additionalDevices)
+
+							phash = participantListHashV2(devices)
 
 						})(),
 						(async() => {
@@ -421,10 +435,6 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 						})()
 					])
 	
-						
-
-					
-
 					const senderKeyJids: string[] = []
 					// ensure a connection is established with every device
 					for(const { user, device } of devices) {
@@ -472,7 +482,45 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 						binaryNodeContent.push(enc)
 					}
 
-					if (presync && !participant) {
+					let restarted = false;
+
+					if (cachedGroupMetadata && lastGroupDataUpdate && restarts < 3) {
+						const groupData = await cachedGroupMetadata(jid) 
+	
+						if (!groupData) {
+							throw new Error('groupData not found.')
+						}
+	
+						if (groupData.participantsUpdatedAt !== lastGroupDataUpdate) {
+							logger.error('group metadata has changed while processing relay message', jid)
+
+							restarted = true;
+	
+							msgId = await relayMessage(jid, message, options, restarts + 1);
+	
+							return;
+						}
+
+						const participantsList = groupData.participants.map(p => p.id)
+
+						const newDevices = await getUSyncDevices(participantsList, !!useUserDevicesCache, false)
+
+						const newPhash = participantListHashV2(newDevices)
+
+						if (phash !== newPhash) {
+							logger.error('phash has changed while processing relay message', jid)
+
+							restarted = true;
+	
+							msgId = await relayMessage(jid, message, options, restarts + 1);
+	
+							return;
+						}
+
+						lastGroupDataUpdate = null;
+					}
+
+					if (presync && !participant && !restarted) {
 						authState.keys.set({ 'sender-key-memory': { [jid]: senderKeyMap } })
 					}
 				} else {
@@ -520,6 +568,9 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 					shouldIncludeDeviceIdentity = shouldIncludeDeviceIdentity || s1 || s2
 				}
 
+
+				
+
 				if (participants.length === 1 && participant) {
 					const enc = getBinaryNodeChild(participants[0], 'enc')!
 					enc.attrs.count = `${participant.count}`;
@@ -542,11 +593,11 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 					content: binaryNodeContent
 				}
 
-				if (isJidGroup(destinationJid) && !participant && devices.length && !!useUserDevicesCache) {
-
-					const phash = participantListHashV2(devices)
+				if (phash) {
 					stanza.attrs.phash = phash
 				}
+
+
 
 				// if the participant to send to is explicitly specified (generally retry recp)
 				// ensure the message is only sent to that person

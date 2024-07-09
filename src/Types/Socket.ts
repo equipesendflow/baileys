@@ -5,8 +5,10 @@ import type { Logger } from 'pino'
 import type { URL } from 'url'
 import { proto } from '../../WAProto'
 import { AuthenticationState, SignalAuthState, TransactionCapabilityOptions } from './Auth'
-import { GroupMetadataParticipants, MediaConnInfo } from './Message'
+import { MediaConnInfo } from './Message'
 import { SignalRepository } from './Signal'
+import { GroupMetadata } from './GroupMetadata'
+import NodeCache from 'node-cache'
 
 export type WAVersion = [number, number, number]
 export type WABrowserDescription = [string, string, string]
@@ -71,7 +73,7 @@ export type SocketConfig = {
      * used to determine whether to retry a message or not */
     msgRetryCounterCache?: CacheStore
     /** provide a cache to store a user's device list */
-    userDevicesCache?: CacheStore
+    userDevicesCache?: NodeCache
     /** cache to store call offers */
     callOfferCache?: CacheStore
     /** width for link preview images */
@@ -109,7 +111,7 @@ export type SocketConfig = {
 
     /** options for axios */
     options: AxiosRequestConfig<{}>
-    cachedGroupMetadata?: (jid: string, force?: boolean) => Promise<GroupMetadataParticipants | undefined>;
+    cachedGroupMetadata?: (jid: string, force?: boolean) => Promise<GroupMetadata | null>;
 
     
     /**
