@@ -372,13 +372,13 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 				// console.log('device_hash', device_hash);
 				// console.log('device_hash !== new_dhash', device_hash !== new_dhash);
 
-				logger.info(`update device cache device_hash: ${device_hash} new_dhash: ${new_dhash}`)
 
 				if (device_hash !== new_dhash) {
+					logger.error(`update device cache device_hash: ${device_hash} new_dhash: ${new_dhash}`)
 					deviceCache.del(user);
 				} else {
+					logger.info(`update device cache device_hash: ${device_hash} new_dhash: ${new_dhash}`)
 					deviceCache.set(user, currentDevices);
-
 				}
 			}
 
