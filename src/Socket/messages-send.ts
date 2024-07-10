@@ -657,6 +657,7 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 				attrs: {
 					id: msgId!,
 					type: 'text',
+					addressing_mode: 'pn',
 					...(additionalAttributes || {}),
 				},
 				content: binaryNodeContent,

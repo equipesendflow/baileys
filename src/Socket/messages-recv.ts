@@ -379,6 +379,11 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 					if (!currentDevices?.length) return;
 
 					for (const rawDevice of getBinaryNodeChildren(child, 'device')) {
+						if (!rawDevice.attrs['key-index']) {
+							deviceCache.del(user);
+							return;
+						}
+
 						const item = jidDecode(rawDevice.attrs.jid);
 
 						if (!item) break;
