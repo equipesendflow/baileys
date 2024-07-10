@@ -620,7 +620,7 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 				if (willSendMessageAgain(ids[0], key.participant)) {
 					if (key.fromMe) {
 						try {
-							// logger.info({ attrs }, 'recv retry request')
+							logger.info({ attrs }, 'recv retry request');
 
 							await sendMessagesAgain(key, ids, retryNode!);
 						} catch (error) {
