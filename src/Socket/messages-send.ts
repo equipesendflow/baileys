@@ -657,11 +657,14 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 				attrs: {
 					id: msgId!,
 					type: 'text',
-					// addressing_mode: 'pn',
 					...(additionalAttributes || {}),
 				},
 				content: binaryNodeContent,
 			};
+
+			if (isGroup) {
+				stanza.attrs.addressing_mode = 'pn';
+			}
 
 			if (phash) {
 				stanza.attrs.phash = phash;
