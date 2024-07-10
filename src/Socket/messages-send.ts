@@ -709,7 +709,10 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 				logger.debug({ jid }, 'adding business node');
 			}
 
-			logger.debug({ msgId }, `sending message to ${participants.length} devices`);
+			logger.info(
+				{ msgId, jid, phash, participant, useUserDevicesCache },
+				`sending message to ${participants.length} devices`,
+			);
 
 			await sendNode(stanza);
 		});
