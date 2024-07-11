@@ -485,6 +485,19 @@ export const generateWAMessageContent = async(
 			selectableOptionsCount: message.poll.selectableCount,
 			options: message.poll.values.map(optionName => ({ optionName })),
 		}
+	} else if('event' in message) {
+		m.messageContextInfo = {
+			messageSecret: message.event.messageSecret || randomBytes(32),
+		}
+
+		m.eventMessage = {
+			name: message.event.name,
+			description: message.event.description,
+			isCanceled: message.event.isCanceled,
+			location: message.event.location,
+			joinLink: message.event.joinLink,
+			startTime: message.event.startTime,
+		}
 	} else if('sharePhoneNumber' in message) {
 		m.protocolMessage = {
 			type: proto.ProtocolMessage.Type.SHARE_PHONE_NUMBER
