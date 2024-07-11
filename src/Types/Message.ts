@@ -17,6 +17,7 @@ export type WAMessageKey = proto.IMessageKey
 export type WATextMessage = proto.IExtendedTextMessage
 export type WAContextInfo = proto.IContextInfo
 export type WALocationMessage = proto.ILocationMessage
+export type WAEventMessage = proto.IEventMessage
 export type WAGenericMediaMessage = proto.IVideoMessage | proto.IImageMessage | proto.IAudioMessage | proto.IDocumentMessage | proto.IStickerMessage
 // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
 export import WAMessageStubType = proto.WebMessageInfo.StubType
@@ -164,6 +165,9 @@ export type AnyRegularMessageContent = (
     }
     | {
         location: WALocationMessage
+    }
+    | {
+        event: WAEventMessage & { messageSecret?: Uint8Array }
     }
     | { react: proto.IReactionMessage }
     | {
