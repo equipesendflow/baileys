@@ -500,7 +500,7 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 	const willSendMessageAgain = (id: string, participant: string) => {
 		const key = `${id}:${participant}`;
 		const retryCount = msgRetryCache.get<number>(key) || 0;
-		return retryCount < 10;
+		return retryCount < 5;
 	};
 
 	const updateSendMessageAgainCount = (id: string, participant: string) => {
@@ -528,29 +528,31 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 
 		for (let i = 0; i < msgs.length; i++) {
 			const msg = msgs[i];
-			if (msg) {
-				updateSendMessageAgainCount(ids[i], participant);
-				const msgRelayOpts: MessageRelayOptions = { messageId: ids[i] };
 
-				key.id = ids[i];
-
-				if (sendToAll) {
-					msgRelayOpts.useUserDevicesCache = false;
-				} else {
-					msgRelayOpts.useUserDevicesCache = false;
-					msgRelayOpts.participant = {
-						jid: participant,
-						count: +retryNode.attrs.count,
-					};
-				}
-
-				await relayMessage(key.remoteJid!, msg, msgRelayOpts);
-			} else {
+			if (!msg) {
 				logger.debug(
 					{ jid: key.remoteJid, id: ids[i] },
 					'recv retry request, but message not available',
 				);
+				continue;
 			}
+
+			updateSendMessageAgainCount(ids[i], participant);
+
+			const msgRelayOpts: MessageRelayOptions = { messageId: ids[i] };
+
+			key.id = ids[i];
+
+			if (sendToAll) {
+				msgRelayOpts.useUserDevicesCache = false;
+			} else {
+				msgRelayOpts.participant = {
+					jid: participant,
+					count: +retryNode.attrs.count,
+				};
+			}
+
+			await relayMessage(key.remoteJid!, msg, msgRelayOpts);
 		}
 	};
 
@@ -623,6 +625,7 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 				// correctly set who is asking for the retry
 				key.participant = key.participant || attrs.from;
 				const retryNode = getBinaryNodeChild(node, 'retry');
+
 				if (willSendMessageAgain(ids[0], key.participant)) {
 					if (key.fromMe) {
 						try {
