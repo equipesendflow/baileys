@@ -32,6 +32,7 @@ import {
 import { getUrlInfo } from '../Utils/link-preview';
 import {
 	areJidsSameUser,
+	assertNodeErrorFree,
 	BinaryNode,
 	BinaryNodeAttributes,
 	getBinaryNodeChild,
@@ -46,7 +47,7 @@ import {
 } from '../WABinary';
 import { makeGroupsSocket } from './groups';
 import ListType = proto.ListMessage.ListType;
-import { makeCallbackPartitions } from '../Utils/utils';
+import { makeCallbackPartitions, removeBuffer } from '../Utils/utils';
 import { WebSocket } from 'ws';
 
 export const makeMessagesSocket = (config: SocketConfig) => {
@@ -562,7 +563,7 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 					}
 
 					if (groupData.participantsUpdatedAt !== lastGroupDataUpdate) {
-						logger.error('group metadata has changed while processing relay message', jid);
+						// logger.error('group metadata has changed while processing relay message', jid);
 
 						restarted = true;
 
@@ -578,7 +579,7 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 					const newPhash = participantListHashV2(newDevices);
 
 					if (phash !== newPhash) {
-						logger.error('phash has changed while processing relay message', jid);
+						// logger.error('phash has changed while processing relay message', jid);
 
 						restarted = true;
 
@@ -713,10 +714,23 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 				logger.debug({ jid }, 'adding business node');
 			}
 
-			logger.info(
-				{ msgId, jid, phash, participant, useUserDevicesCache },
-				`sending message to ${participants.length} devices`,
-			);
+			// logger.info(
+			// 	{ msgId, jid, phash, participant, useUserDevicesCache },
+			// 	`sending message to ${participants.length} devices`,
+			// );
+
+			sock.waitForMessage(msgId!)
+				.then(response => {
+					if (!('tag' in response)) return;
+
+					if (!response.attrs.error) return;
+
+					logger.error(
+						{ response, stanza: removeBuffer(stanza) },
+						'received error in send message',
+					);
+				})
+				.catch(e => logger.error(e));
 
 			await sendNode(stanza);
 		});
@@ -1004,3 +1018,6 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 		},
 	};
 };
+function waitForMessage(msgId: string | undefined, timeoutMs: any) {
+	throw new Error('Function not implemented.');
+}

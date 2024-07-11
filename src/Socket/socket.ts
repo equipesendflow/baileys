@@ -343,7 +343,6 @@ export const makeSocket = ({
 
 				if (logger.level === 'trace' && !shouldIgnoreFrameLog(frame)) {
 					const frameParsed = removeBuffer(frame);
-
 					logger.trace({ msgId, fromMe: false, frame: frameParsed }, 'communication');
 				}
 

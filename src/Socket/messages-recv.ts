@@ -537,6 +537,7 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 				if (sendToAll) {
 					msgRelayOpts.useUserDevicesCache = false;
 				} else {
+					msgRelayOpts.useUserDevicesCache = false;
 					msgRelayOpts.participant = {
 						jid: participant,
 						count: +retryNode.attrs.count,
@@ -808,7 +809,7 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 		await sendMessageAck(node);
 	};
 
-	const handleBadAck = async (node: BinaryNode) => {
+	const handleMessageResponse = async (node: BinaryNode) => {
 		const { attrs } = node;
 		const key: WAMessageKey = { remoteJid: attrs.from, fromMe: true, id: attrs.id };
 		// current hypothesis is that if pash is sent in the ack
@@ -837,7 +838,7 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 		// error in acknowledgement,
 		// device could not display the message
 		if (attrs.error) {
-			logger.error(node, 'received error in ack');
+			// logger.error(node, 'received error in ack');
 			ev.emit('messages.update', [
 				{
 					key,
@@ -884,7 +885,7 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 	});
 
 	ws.on('CB:ack,class:message', (node: BinaryNode) => {
-		handleBadAck(node).catch(error => onUnexpectedError(error, 'handling bad ack'));
+		handleMessageResponse(node).catch(error => onUnexpectedError(error, 'handling bad ack'));
 	});
 
 	ev.on('call', ([call]) => {
