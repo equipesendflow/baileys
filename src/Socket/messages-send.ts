@@ -723,12 +723,19 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 				.then(response => {
 					if (!('tag' in response)) return;
 
-					if (!response.attrs.error) return;
+					if (response.attrs.phash) {
+						logger.error(
+							{ response, stanza: removeBuffer(stanza) },
+							'received phash in send message',
+						);
+					}
 
-					logger.error(
-						{ response, stanza: removeBuffer(stanza) },
-						'received error in send message',
-					);
+					if (response.attrs.error) {
+						logger.error(
+							{ response, stanza: removeBuffer(stanza) },
+							'received error in send message',
+						);
+					}
 				})
 				.catch(e => logger.error(e));
 

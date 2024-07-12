@@ -818,15 +818,15 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 		// current hypothesis is that if pash is sent in the ack
 		// it means -- the message hasn't reached all devices yet
 		// we'll retry sending the message here
-		if (attrs.phash) {
-			logger.error(node, 'received phash in ack');
-			// const msg = await getMessage(key);
-			// if (msg) {
-			// 	await relayMessage(key.remoteJid!, msg, { messageId: key.id!, useUserDevicesCache: false });
-			// } else {
-			// 	logger.error(node, 'could not send message again, as it was not found');
-			// }
-		}
+		// if (attrs.phash) {
+		// 	logger.error(node, 'received phash in ack');
+		// const msg = await getMessage(key);
+		// if (msg) {
+		// 	await relayMessage(key.remoteJid!, msg, { messageId: key.id!, useUserDevicesCache: false });
+		// } else {
+		// 	logger.error(node, 'could not send message again, as it was not found');
+		// }
+		// }
 
 		// if(!attrs.phash) {
 		// 	logger.info(node, 'handling bad ack, no phash, resending message...')
