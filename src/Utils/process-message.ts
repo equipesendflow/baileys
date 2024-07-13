@@ -154,6 +154,61 @@ export function decryptPollVote(pollEncValue: proto.IPollEncValue, pollContext: 
 	}
 }
 
+type EventContext = {
+	/** normalised jid of the person that created the poll */
+	originalMessageSender: string;
+	/** ID of the poll creation message */
+	stanzaId: string;
+	/** poll creation message enc key */
+	messageSecret: Uint8Array;
+	/** jid of the person that voted */
+	modificationSender: string;
+};
+
+/**
+ * Decrypt a poll vote
+ * @param vote encrypted vote
+ * @param ctx additional info about the poll required for decryption
+ * @returns list of SHA256 options
+ */
+export function decryptEventResponse(
+	encEventResponseMessage: proto.IEncEventResponseMessage,
+	eventContext: EventContext,
+) {
+	const { encPayload, encIv } = encEventResponseMessage;
+	const { originalMessageSender, stanzaId, messageSecret, modificationSender } = eventContext;
+
+	const sign = Buffer.concat([
+		toBinary(stanzaId),
+		toBinary(originalMessageSender),
+		toBinary(modificationSender),
+		toBinary('Event Response'),
+		new Uint8Array([1]),
+	]);
+
+	const key0 = hmacSign(messageSecret, new Uint8Array(32), 'sha256');
+	const decKey = hmacSign(sign, key0, 'sha256');
+	const aad = toBinary(`${stanzaId}\u0000${modificationSender}`);
+
+	try {
+		const decrypted = aesDecryptGCM(encPayload!, decKey, encIv!, aad);
+		return proto.EventResponseMessage.decode(decrypted);
+	} catch (e: any) {
+		console.log(e);
+		console.log({
+			sign,
+			key0,
+			decKey,
+			aad,
+		});
+		throw e;
+	}
+}
+
+function toBinary(txt: string) {
+	return Buffer.from(txt);
+}
+
 const processMessage = async (
 	message: proto.IWebMessageInfo,
 	{ shouldProcessHistoryMsg, ev, creds, keyStore, logger, options, getMessage }: ProcessMessageContext,
