@@ -723,78 +723,81 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 				.then(async response => {
 					if (!('tag' in response)) return;
 
+					if (!response.attrs.phash && !response.attrs.error) return;
+
+					let log_message = '';
+
 					if (response.attrs.phash) {
-						logger.error(
-							{ response, stanza: removeBuffer(stanza) },
-							'received phash in send message',
-						);
+						log_message = 'received phash in send message';
 					}
 
 					if (response.attrs.error) {
-						const sent_data: any = {
-							message_attrs: stanza.attrs,
-							participants_length: participants.length,
-							devices_length: devices.length,
-							devices: devices.map(it => jidEncode(it.user, 's.whatsapp.net', it.device)),
-							phash: phash,
-							error: null,
-							isGroup,
-						};
+						log_message = 'received error in send message';
+					}
 
-						if (isGroup && cachedGroupMetadata) {
-							const groupData = await cachedGroupMetadata(jid, true);
+					const sent_data: any = {
+						message_attrs: stanza.attrs,
+						participants_length: participants.length,
+						devices_length: devices.length,
+						devices: devices.map(it => jidEncode(it.user, 's.whatsapp.net', it.device)),
+						phash: phash,
+						error: null,
+						isGroup,
+					};
 
-							if (!groupData) {
-								sent_data.error = 'groupData not found.';
-							}
+					if (isGroup && cachedGroupMetadata) {
+						const groupData = await cachedGroupMetadata(jid, true);
 
-							if (groupData) {
-								if (!participant) {
-									const participantsList = groupData.participants.map(p => p.id);
-
-									sent_data.new_participants_length = participantsList.length;
-
-									const newDevices = await getUSyncDevicesFromCache(participantsList);
-
-									sent_data.new_devices_length = newDevices.length;
-
-									sent_data.new_phash = participantListHashV2(newDevices);
-								}
-
-								if (participant) {
-									const { user, device } = jidDecode(participant.jid)!;
-									const participant_jid = jidNormalizedUser(participant.jid);
-
-									const still_a_participant = groupData.participants.some(
-										p => p.id === participant_jid,
-									);
-
-									sent_data.still_a_participant = still_a_participant;
-									sent_data.new_participants_length = groupData.participants.length;
-
-									const newDevices = await getUSyncDevices([participant.jid], false, false);
-
-									const still_a_device = newDevices.some(
-										it => it.device === device && it.user === user,
-									);
-
-									sent_data.still_a_device = still_a_device;
-									sent_data.new_devices_length = newDevices.length;
-									sent_data.new_devices = newDevices.map(it =>
-										jidEncode(it.user, 's.whatsapp.net', it.device),
-									);
-								}
-							}
+						if (!groupData) {
+							sent_data.error = 'groupData not found.';
 						}
 
-						logger.error(
-							{
-								response,
-								sent_data,
-							},
-							'received error in send message',
-						);
+						if (groupData) {
+							if (!participant) {
+								const participantsList = groupData.participants.map(p => p.id);
+
+								sent_data.new_participants_length = participantsList.length;
+
+								const newDevices = await getUSyncDevicesFromCache(participantsList);
+
+								sent_data.new_devices_length = newDevices.length;
+
+								sent_data.new_phash = participantListHashV2(newDevices);
+							}
+
+							if (participant) {
+								const { user, device } = jidDecode(participant.jid)!;
+								const participant_jid = jidNormalizedUser(participant.jid);
+
+								const still_a_participant = groupData.participants.some(
+									p => p.id === participant_jid,
+								);
+
+								sent_data.still_a_participant = still_a_participant;
+								sent_data.new_participants_length = groupData.participants.length;
+
+								const newDevices = await getUSyncDevices([participant.jid], false, false);
+
+								const still_a_device = newDevices.some(
+									it => it.device === device && it.user === user,
+								);
+
+								sent_data.still_a_device = still_a_device;
+								sent_data.new_devices_length = newDevices.length;
+								sent_data.new_devices = newDevices.map(it =>
+									jidEncode(it.user, 's.whatsapp.net', it.device),
+								);
+							}
+						}
 					}
+
+					logger.error(
+						{
+							response,
+							sent_data,
+						},
+						log_message,
+					);
 				})
 				.catch(e => logger.error(e));
 
