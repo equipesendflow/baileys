@@ -477,7 +477,7 @@ export const generateWAMessageContent = async(
 
 		m.messageContextInfo = {
 			// encKey
-			messageSecret: message.poll.messageSecret || randomBytes(32),
+			messageSecret: message.messageContextInfo?.messageSecret || randomBytes(32),
 		}
 
 		m.pollCreationMessage = {
@@ -487,7 +487,7 @@ export const generateWAMessageContent = async(
 		}
 	} else if('event' in message) {
 		m.messageContextInfo = {
-			messageSecret: message.event.messageSecret || randomBytes(32),
+			messageSecret: message.messageContextInfo?.messageSecret || randomBytes(32),
 		}
 
 		m.eventMessage = {

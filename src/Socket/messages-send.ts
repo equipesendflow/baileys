@@ -1071,21 +1071,6 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 			const fullMsg = await generateWAMessage(jid, content, {
 				logger,
 				userJid,
-				getUrlInfo: async text => {
-					if (!options.detectLinks) {
-						return undefined;
-					}
-
-					return getUrlInfo(text, {
-						thumbnailWidth: linkPreviewImageThumbnailWidth,
-						fetchOpts: {
-							timeout: 3_000,
-							...(axiosOptions || {}),
-						},
-						logger,
-						uploadImage: generateHighQualityLinkPreview ? waUploadToServer : undefined,
-					});
-				},
 				upload: waUploadToServer,
 				mediaCache: config.mediaCache,
 				options: config.options,
@@ -1096,6 +1081,3 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 		},
 	};
 };
-function waitForMessage(msgId: string | undefined, timeoutMs: any) {
-	throw new Error('Function not implemented.');
-}
