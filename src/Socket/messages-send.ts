@@ -453,6 +453,7 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 		let lastGroupDataUpdate: number | null = null;
 
 		let phash: string | null = null;
+		let participantsList: string[] = [];
 
 		await authState.keys.transaction(async () => {
 			const mediaType = getMediaType(message);
@@ -472,7 +473,7 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 
 						lastGroupDataUpdate = groupData.participantsUpdatedAt || null;
 
-						const participantsList = groupData.participants.map(p => p.id);
+						participantsList = groupData.participants.map(p => p.id);
 
 						const additionalDevices = await getUSyncDevices(participantsList, true, false);
 
@@ -737,9 +738,8 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 
 					const sent_data: any = {
 						message_attrs: stanza.attrs,
-						participants_length: participants.length,
+						participants_length: participantsList.length,
 						devices_length: devices.length,
-						devices: devices.map(it => jidEncode(it.user, 's.whatsapp.net', it.device)),
 						phash: phash,
 						isGroup,
 						useUserDevicesCache,
@@ -763,6 +763,12 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 								sent_data.new_devices_length = newDevices.length;
 
 								sent_data.new_phash = participantListHashV2(newDevices);
+
+								sent_data.participants_changed =
+									sent_data.participants_length != sent_data.new_participants_length;
+								sent_data.devices_changed =
+									sent_data.devices_length != sent_data.new_devices_length;
+								sent_data.phash_changed = sent_data.phash != sent_data.new_phash;
 							}
 
 							if (participant) {
@@ -775,6 +781,9 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 
 								sent_data.still_a_participant = still_a_participant;
 								sent_data.new_participants_length = groupData.participants.length;
+								sent_data.devices = devices.map(it =>
+									jidEncode(it.user, 's.whatsapp.net', it.device),
+								);
 
 								const newDevices = await getUSyncDevices([participant.jid], false, false);
 
