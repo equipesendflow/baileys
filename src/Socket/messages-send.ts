@@ -741,8 +741,8 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 						devices_length: devices.length,
 						devices: devices.map(it => jidEncode(it.user, 's.whatsapp.net', it.device)),
 						phash: phash,
-						error: null,
 						isGroup,
+						useUserDevicesCache,
 					};
 
 					if (isGroup && cachedGroupMetadata) {
