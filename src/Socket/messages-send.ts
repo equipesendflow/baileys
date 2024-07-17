@@ -47,7 +47,7 @@ import {
 } from '../WABinary';
 import { makeGroupsSocket } from './groups';
 import ListType = proto.ListMessage.ListType;
-import { makeCallbackPartitions, removeBuffer } from '../Utils/utils';
+import { makeChunks, removeBuffer } from '../Utils/utils';
 import { WebSocket } from 'ws';
 
 export const makeMessagesSocket = (config: SocketConfig) => {
@@ -256,7 +256,7 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 
 		const deviceMap: { [_: string]: JidWithDevice[] } = {};
 
-		await makeCallbackPartitions({
+		await makeChunks({
 			list: users,
 			callback: async users => {
 				const iq: BinaryNode = {
@@ -332,7 +332,7 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 		if (jidsRequiringFetch.length) {
 			logger.debug({ jidsRequiringFetch }, 'fetching sessions');
 
-			await makeCallbackPartitions({
+			await makeChunks({
 				list: jidsRequiringFetch,
 				callback: async ls => {
 					const result = await query({
@@ -758,7 +758,7 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 
 								sent_data.new_participants_length = participantsList.length;
 
-								const newDevices = await getUSyncDevicesFromCache(participantsList);
+								const newDevices = await getUSyncDevices(participantsList, false, false);
 
 								sent_data.new_devices_length = newDevices.length;
 
