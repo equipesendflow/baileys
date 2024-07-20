@@ -516,7 +516,7 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 		// if it's the primary jid sending the request
 		// just re-send the message to everyone
 		// prevents the first message decryption failure
-		const sendToAll = !jidDecode(participant)?.device
+		const sendToAll = !jidDecode(participant)?.device;
 		// const sendToAll = false;
 		await assertSessions([participant], true);
 
@@ -841,7 +841,7 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 		// error in acknowledgement,
 		// device could not display the message
 		if (attrs.error) {
-			// logger.error(node, 'received error in ack');
+			logger.error({ node }, 'received error in ack');
 			ev.emit('messages.update', [
 				{
 					key,

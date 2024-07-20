@@ -320,17 +320,17 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 
 		const jidsRequiringFetch: string[] = [];
 
-		await asyncAll(jids.map(async jid => {
-			const signalId = jidToSignalProtocolAddress(jid);
+		await asyncAll(
+			jids.map(async jid => {
+				const signalId = jidToSignalProtocolAddress(jid);
 
-			const sessions = await authState.keys.get('session', [signalId]);
+				const sessions = await authState.keys.get('session', [signalId]);
 
-			if (sessions[signalId]) return;
+				if (sessions[signalId]) return;
 
-			jidsRequiringFetch.push(jid);
-		}))
-
-		
+				jidsRequiringFetch.push(jid);
+			}),
+		);
 
 		return jidsRequiringFetch;
 	};
@@ -717,97 +717,97 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 		// 	`sending message to ${participants.length} devices`,
 		// );
 
-		sock.waitForMessage(msgId!)
-			.then(async response => {
-				if (!('tag' in response)) return;
+		// sock.waitForMessage(msgId!)
+		// 	.then(async response => {
+		// 		if (!('tag' in response)) return;
 
-				// if (!response.attrs.phash && !response.attrs.error) return;
-				if (!response.attrs.error) return;
-				if (response.attrs.error.toString() === '479') return;
+		// 		// if (!response.attrs.phash && !response.attrs.error) return;
+		// 		if (!response.attrs.error) return;
+		// 		if (response.attrs.error.toString() === '479') return;
 
-				let log_message = '';
+		// 		let log_message = '';
 
-				if (response.attrs.phash) {
-					log_message = 'received phash in send message';
-				}
+		// 		if (response.attrs.phash) {
+		// 			log_message = 'received phash in send message';
+		// 		}
 
-				if (response.attrs.error) {
-					log_message = 'received error in send message';
-				}
+		// 		if (response.attrs.error) {
+		// 			log_message = 'received error in send message';
+		// 		}
 
-				const sent_data: any = {
-					message_attrs: stanza.attrs,
-					participants_length: participantsList.length,
-					devices_length: devices.length,
-					phash: phash,
-					isGroup,
-					useUserDevicesCache,
-				};
+		// 		const sent_data: any = {
+		// 			message_attrs: stanza.attrs,
+		// 			participants_length: participantsList.length,
+		// 			devices_length: devices.length,
+		// 			phash: phash,
+		// 			isGroup,
+		// 			useUserDevicesCache,
+		// 		};
 
-				if (isGroup && cachedGroupMetadata) {
-					const groupData = await cachedGroupMetadata(jid, true);
+		// 		if (isGroup && cachedGroupMetadata) {
+		// 			const groupData = await cachedGroupMetadata(jid, true);
 
-					if (!groupData) {
-						sent_data.error = 'groupData not found.';
-					}
+		// 			if (!groupData) {
+		// 				sent_data.error = 'groupData not found.';
+		// 			}
 
-					if (groupData) {
-						if (!participant) {
-							const participantsList = groupData.participants.map(p => p.id);
+		// 			if (groupData) {
+		// 				if (!participant) {
+		// 					const participantsList = groupData.participants.map(p => p.id);
 
-							sent_data.new_participants_length = participantsList.length;
+		// 					sent_data.new_participants_length = participantsList.length;
 
-							const newDevices = await getUSyncDevices(participantsList, false, false);
+		// 					const newDevices = await getUSyncDevices(participantsList, false, false);
 
-							sent_data.new_devices_length = newDevices.length;
+		// 					sent_data.new_devices_length = newDevices.length;
 
-							sent_data.new_phash = participantListHashV2(newDevices);
+		// 					sent_data.new_phash = participantListHashV2(newDevices);
 
-							sent_data.participants_changed =
-								sent_data.participants_length != sent_data.new_participants_length;
-							sent_data.devices_changed =
-								sent_data.devices_length != sent_data.new_devices_length;
-							sent_data.phash_changed = sent_data.phash != sent_data.new_phash;
-						}
+		// 					sent_data.participants_changed =
+		// 						sent_data.participants_length != sent_data.new_participants_length;
+		// 					sent_data.devices_changed =
+		// 						sent_data.devices_length != sent_data.new_devices_length;
+		// 					sent_data.phash_changed = sent_data.phash != sent_data.new_phash;
+		// 				}
 
-						if (participant) {
-							const { user, device } = jidDecode(participant.jid)!;
-							const participant_jid = jidNormalizedUser(participant.jid);
+		// 				if (participant) {
+		// 					const { user, device } = jidDecode(participant.jid)!;
+		// 					const participant_jid = jidNormalizedUser(participant.jid);
 
-							const still_a_participant = groupData.participants.some(
-								p => p.id === participant_jid,
-							);
+		// 					const still_a_participant = groupData.participants.some(
+		// 						p => p.id === participant_jid,
+		// 					);
 
-							sent_data.still_a_participant = still_a_participant;
-							sent_data.new_participants_length = groupData.participants.length;
-							sent_data.devices = devices.map(it =>
-								jidEncode(it.user, 's.whatsapp.net', it.device),
-							);
+		// 					sent_data.still_a_participant = still_a_participant;
+		// 					sent_data.new_participants_length = groupData.participants.length;
+		// 					sent_data.devices = devices.map(it =>
+		// 						jidEncode(it.user, 's.whatsapp.net', it.device),
+		// 					);
 
-							const newDevices = await getUSyncDevices([participant.jid], false, false);
+		// 					const newDevices = await getUSyncDevices([participant.jid], false, false);
 
-							const still_a_device = newDevices.some(
-								it => it.device === device && it.user === user,
-							);
+		// 					const still_a_device = newDevices.some(
+		// 						it => it.device === device && it.user === user,
+		// 					);
 
-							sent_data.still_a_device = still_a_device;
-							sent_data.new_devices_length = newDevices.length;
-							sent_data.new_devices = newDevices.map(it =>
-								jidEncode(it.user, 's.whatsapp.net', it.device),
-							);
-						}
-					}
-				}
+		// 					sent_data.still_a_device = still_a_device;
+		// 					sent_data.new_devices_length = newDevices.length;
+		// 					sent_data.new_devices = newDevices.map(it =>
+		// 						jidEncode(it.user, 's.whatsapp.net', it.device),
+		// 					);
+		// 				}
+		// 			}
+		// 		}
 
-				logger.error(
-					{
-						response,
-						sent_data,
-					},
-					log_message,
-				);
-			})
-			.catch(e => logger.error(e));
+		// 		logger.error(
+		// 			{
+		// 				response,
+		// 				sent_data,
+		// 			},
+		// 			log_message,
+		// 		);
+		// 	})
+		// 	.catch(e => logger.error(e));
 
 		await sendNode(stanza);
 
