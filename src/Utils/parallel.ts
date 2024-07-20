@@ -2,6 +2,11 @@ export function asyncDelay(ms: number) {
 	return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+export async function asyncAll<T>(list: T[]) {
+	if (!list.length) return Promise.resolve([]);
+	return Promise.all(list);
+}
+
 export async function asyncAllSettled<T>(list: T[]) {
 	if (!list.length) return Promise.resolve([]);
 	const responses = await Promise.allSettled(list);
@@ -58,4 +63,3 @@ export async function runParallel(callback: (add: (promise: any) => Promise<any>
 
 	return asyncAllSettled(list);
 }
-

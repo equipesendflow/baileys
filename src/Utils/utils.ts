@@ -1,5 +1,3 @@
-import { runParallel } from './parallel';
-
 interface MakeCallbackPartitionOptions<T> {
 	list: T[] | null | undefined;
 	callback: (ls: T[]) => any;
@@ -38,6 +36,47 @@ export async function makeChunks<T>(options: MakeCallbackPartitionOptions<T>) {
 // 	callback: (ls) => console.log(ls),
 // 	partitionLength: 7
 // })
+
+/**
+ * Creates an array of elements split into groups the length of `size`.
+ * If `array` can't be split evenly, the final chunk will be the remaining
+ * elements.
+ *
+ * @category Array
+ * @param array The array to process.
+ * @param size The length of each chunk
+ * @param roundingFactor The factor to round the chunk size to, roundingFactor should between 0 and 1
+ * @returns Returns the new array of chunks.
+ * @example
+ *
+ * chunk(['a', 'b', 'c', 'd'], 2)
+ * // => [['a', 'b'], ['c', 'd']]
+ *
+ * chunk(['a', 'b', 'c', 'd'], 3)
+ * // => [['a', 'b', 'c'], ['d']]
+ */
+export function chunk<T>(array: T[], size: number, roundingFactor = 0) {
+	if (!array?.length) return [];
+
+	const arrayRemainingLength = array.length % size;
+	const chunkRoundingLimit = size * roundingFactor;
+
+	let arrIndex = 0;
+	let resIndex = 0;
+
+	const resLength = Math.floor(array.length / size) + (arrayRemainingLength > chunkRoundingLimit ? 1 : 0);
+	const resLengthFull = resLength - 1;
+
+	const result = new Array<T[]>(resLength);
+
+	while (resIndex < resLengthFull) {
+		result[resIndex++] = array.slice(arrIndex, (arrIndex += size));
+	}
+
+	result[resIndex] = array.slice(arrIndex);
+
+	return result;
+}
 
 export function removeBufferOnString(inputText: string) {
 	let replacedText = inputText;
