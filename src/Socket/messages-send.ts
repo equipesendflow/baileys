@@ -320,15 +320,17 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 
 		const jidsRequiringFetch: string[] = [];
 
-		for (const jid of jids) {
+		await asyncAll(jids.map(async jid => {
 			const signalId = jidToSignalProtocolAddress(jid);
 
 			const sessions = await authState.keys.get('session', [signalId]);
 
-			if (sessions[signalId]) continue;
+			if (sessions[signalId]) return;
 
 			jidsRequiringFetch.push(jid);
-		}
+		}))
+
+		
 
 		return jidsRequiringFetch;
 	};
