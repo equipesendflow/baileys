@@ -105,7 +105,7 @@ function replaceBufferType(obj) {
 	return obj;
 }
 
-export const BufferJSON = {
+export const RemoveBufferJSON = {
 	replacer: (_key: any, value: any) => {
 		if (Buffer.isBuffer(value) || value instanceof Uint8Array || value?.type === 'Buffer') {
 			return { type: 'Buffer', data: Buffer.from(value?.data || value).toString('base64') };
@@ -129,7 +129,7 @@ export function removeBuffer(inputObj: any) {
 	if (!inputObj) return null;
 
 	try {
-		return JSON.parse(JSON.stringify(inputObj, BufferJSON.replacer, 2), BufferJSON.reviver);
+		return JSON.parse(JSON.stringify(inputObj, RemoveBufferJSON.replacer, 2), RemoveBufferJSON.reviver);
 	} catch (e: any) {
 		return null;
 	}
