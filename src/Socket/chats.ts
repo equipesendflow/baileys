@@ -67,7 +67,7 @@ export const makeChatsSocket = (config: SocketConfig) => {
 		return key;
 	};
 
-	const fetchPrivacySettings = async (force: boolean = false) => {
+	const fetchPrivacySettings = async (force: boolean = false, notParse = false) => {
 		if (!privacySettings || force) {
 			const { content } = await query({
 				tag: 'iq',
@@ -78,7 +78,10 @@ export const makeChatsSocket = (config: SocketConfig) => {
 				},
 				content: [{ tag: 'privacy', attrs: {} }],
 			});
-			privacySettings = reduceBinaryNodeToDictionary(content?.[0] as BinaryNode, 'category');
+
+			if (!notParse) {
+				privacySettings = reduceBinaryNodeToDictionary(content?.[0] as BinaryNode, 'category');
+			}
 		}
 
 		return privacySettings;
@@ -207,7 +210,7 @@ export const makeChatsSocket = (config: SocketConfig) => {
 		await chatModify({ pushNameSetting: name }, '');
 	};
 
-	const fetchBlocklist = async () => {
+	const fetchBlocklist = async (notParse = false) => {
 		const result = await query({
 			tag: 'iq',
 			attrs: {
@@ -216,6 +219,8 @@ export const makeChatsSocket = (config: SocketConfig) => {
 				type: 'get',
 			},
 		});
+
+		if (notParse) return;
 
 		const listNode = getBinaryNodeChild(result, 'list');
 		return getBinaryNodeChildren(listNode, 'item').map(n => n.attrs.jid);
@@ -700,7 +705,7 @@ export const makeChatsSocket = (config: SocketConfig) => {
 	// }
 
 	/** sending non-abt props may fix QR scan fail if server expects */
-	const fetchProps = async () => {
+	const fetchProps = async (notParse = false) => {
 		const resultNode = await query({
 			tag: 'iq',
 			attrs: {
@@ -715,8 +720,13 @@ export const makeChatsSocket = (config: SocketConfig) => {
 
 		let props: { [_: string]: string } = {};
 		if (propsNode) {
-			authState.creds.lastPropHash = propsNode?.attrs?.hash;
-			props = reduceBinaryNodeToDictionary(propsNode, 'prop');
+			if (propsNode?.attrs?.hash) {
+				authState.creds.lastPropHash = propsNode?.attrs?.hash;
+			}
+
+			if (!notParse) {
+				props = reduceBinaryNodeToDictionary(propsNode, 'prop');
+			}
 		}
 
 		logger.debug('fetched props');
@@ -741,8 +751,8 @@ export const makeChatsSocket = (config: SocketConfig) => {
 	const executeInitQueries = async () => {
 		await Promise.all([
 			// fetchAbt(),
-			fetchProps(),
-			fetchBlocklist(),
+			fetchProps(true),
+			fetchBlocklist(true),
 			fetchPrivacySettings(),
 		]);
 	};
