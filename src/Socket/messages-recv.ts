@@ -116,7 +116,7 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 		}
 
 		// logger.debug({ recv: { tag, attrs }, sent: stanza.attrs }, 'sent ack')
-		await sendNode(stanza);
+		await sendNode(stanza).catch(error => onUnexpectedError(error, 'sending ack'));
 	};
 
 	const rejectCall = async (callId: string, callFrom: string) => {
