@@ -84,7 +84,7 @@ export const makeChatsSocket = (config: SocketConfig) => {
 			}
 		}
 
-		return privacySettings;
+		return privacySettings || {};
 	};
 
 	/** helper function to run a generic IQ query */
