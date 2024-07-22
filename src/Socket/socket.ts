@@ -106,13 +106,13 @@ export const makeSocket = ({
 	const sendRawMessage = async (data: Uint8Array | Buffer) => {
 		const bytes = noise.encodeFrame(data);
 		await promiseTimeout<void>(connectTimeoutMs, async (resolve, reject) => {
-			if (ws.readyState !== ws.OPEN) {
-				throw new Boom('Connection Closed on sendRawMessage', {
-					statusCode: DisconnectReason.connectionClosed,
-				});
-			}
-
 			try {
+				if (ws.readyState !== ws.OPEN) {
+					throw new Boom('Connection Closed on sendRawMessage', {
+						statusCode: DisconnectReason.connectionClosed,
+					});
+				}
+
 				await sendPromise.call(ws, bytes);
 				resolve();
 			} catch (error) {

@@ -163,7 +163,7 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 		}
 
 		logger.debug({ attrs: node.attrs, messageIds }, 'sending receipt for messages');
-		await sendNode(node);
+		await sendNode(node).catch(e => logger.error(e, 'failed to send receipt'));
 	};
 
 	/** Correctly bulk send receipts to multiple chats, participants */
