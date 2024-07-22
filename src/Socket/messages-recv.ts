@@ -516,8 +516,8 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 		// if it's the primary jid sending the request
 		// just re-send the message to everyone
 		// prevents the first message decryption failure
-		const sendToAll = !jidDecode(participant)?.device;
-		// const sendToAll = false;
+		// const sendToAll = !jidDecode(participant)?.device;
+		const sendToAll = false;
 		await assertSessions([participant], true);
 
 		if (isJidGroup(remoteJid)) {
