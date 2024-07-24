@@ -606,7 +606,7 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 				if (jidWithDevice.user === myUser && jidWithDevice.device === myDevice) continue;
 
 				const jid = jidEncode(jidWithDevice.user, 's.whatsapp.net', jidWithDevice.device);
-				const isMe = user === meUser;
+				const isMe = jidWithDevice.user === meUser;
 
 				if (isMe) {
 					meJids.push(jid);
@@ -633,6 +633,7 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 				createParticipantNodes(meJids, meMsg, mediaType ? { mediatype: mediaType } : undefined),
 				createParticipantNodes(otherJids, message, mediaType ? { mediatype: mediaType } : undefined),
 			]);
+
 			participants.push(...meNodes);
 			participants.push(...otherNodes);
 
