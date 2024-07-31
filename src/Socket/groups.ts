@@ -1,6 +1,5 @@
 import { proto } from '../../WAProto';
 import {
-	Community,
 	GroupMetadata,
 	GroupParticipant,
 	ParticipantAction,
@@ -14,6 +13,7 @@ import {
 	getBinaryNodeChild,
 	getBinaryNodeChildren,
 	getBinaryNodeChildString,
+	getBinaryNodeContentString,
 	jidEncode,
 	jidNormalizedUser,
 } from '../WABinary';
@@ -36,8 +36,54 @@ export const makeGroupsSocket = (config: SocketConfig) => {
 
 	const groupMetadata = async (jid: string) => {
 		const result = await groupQuery(jid, 'get', [{ tag: 'query', attrs: { request: 'interactive' } }]);
-		return extractGroupMetadata(result);
+		return extractResultGroupMetadata(result);
 	};
+
+	async function groupFetchAllParticipatingContent() {
+		const result = await query({
+			tag: 'iq',
+			attrs: {
+				to: '@g.us',
+				xmlns: 'w:g2',
+				type: 'get',
+			},
+			content: [
+				{
+					tag: 'participating',
+					attrs: {},
+					content: [
+						{ tag: 'participants', attrs: {} },
+						{ tag: 'description', attrs: {} },
+					],
+				},
+			],
+		});
+
+		const groupsChild = getBinaryNodeChild(result, 'groups');
+
+		if (!groupsChild?.content) return null;
+		if (!Array.isArray(groupsChild?.content)) return null;
+
+		return groupsChild.content;
+	}
+
+	async function groupFetchAllParticipating() {
+		const content = await groupFetchAllParticipatingContent();
+
+		if (!content) throw new Error('failed to fetch group content');
+
+		const data: { [_: string]: GroupMetadata } = {};
+
+		for (const groupNode of content) {
+			if (groupNode.tag !== 'group') continue;
+
+			const group = extractGroupMetadata(groupNode);
+
+			data[group.id] = group;
+		}
+
+		return data;
+	}
 
 	return {
 		...sock,
@@ -57,7 +103,7 @@ export const makeGroupsSocket = (config: SocketConfig) => {
 					})),
 				},
 			]);
-			return extractGroupMetadata(result);
+			return extractResultGroupMetadata(result);
 		},
 		communityCreate: async (subject: string) => {
 			const result = await groupQuery('g.us', 'set', [
@@ -77,7 +123,7 @@ export const makeGroupsSocket = (config: SocketConfig) => {
 				},
 			]);
 
-			return extractGroupMetadata(result);
+			return extractResultGroupMetadata(result);
 		},
 		communityGetSubGroups: async (jid: string) => {
 			const result = await groupQuery(jid, 'get', [{ tag: 'sub_groups', attrs: {} }]);
@@ -228,7 +274,7 @@ export const makeGroupsSocket = (config: SocketConfig) => {
 		),
 		groupGetInviteInfo: async (code: string) => {
 			const results = await groupQuery('@g.us', 'get', [{ tag: 'invite', attrs: { code } }]);
-			return extractGroupMetadata(results);
+			return extractResultGroupMetadata(results);
 		},
 		groupToggleEphemeral: async (jid: string, ephemeralExpiration: number) => {
 			const content: BinaryNode = ephemeralExpiration
@@ -242,98 +288,94 @@ export const makeGroupsSocket = (config: SocketConfig) => {
 		) => {
 			await groupQuery(jid, 'set', [{ tag: setting, attrs: {} }]);
 		},
-		groupFetchAllParticipating: async () => {
-			const result = await query({
-				tag: 'iq',
-				attrs: {
-					to: '@g.us',
-					xmlns: 'w:g2',
-					type: 'get',
-				},
-				content: [
-					{
-						tag: 'participating',
-						attrs: {},
-						content: [
-							{ tag: 'participants', attrs: {} },
-							{ tag: 'description', attrs: {} },
-						],
-					},
-				],
-			});
-			const data: { [_: string]: GroupMetadata } = {};
-			const groupsChild = getBinaryNodeChild(result, 'groups');
-			if (groupsChild) {
-				const groups = getBinaryNodeChildren(groupsChild, 'group');
-				for (const groupNode of groups) {
-					const meta = extractGroupMetadata({
-						tag: 'result',
-						attrs: {},
-						content: [groupNode],
-					});
-					data[meta.id] = meta;
-				}
-			}
-
-			return data;
-		},
+		groupFetchAllParticipatingContent,
+		groupFetchAllParticipating,
 	};
 };
 
-export const extractGroupMetadata = (result: BinaryNode) => {
+export const extractResultGroupMetadata = (result: BinaryNode) => {
 	const group = getBinaryNodeChild(result, 'group')!;
-	const descChild = getBinaryNodeChild(group, 'description');
-	const isCommunity = !!(getBinaryNodeChild(group, 'parent') || getBinaryNodeChild(group, 'linked_parent'));
-	let desc: string | undefined;
-	let descId: string | undefined;
-	let community: Community | undefined;
 
-	if (descChild) {
-		desc = getBinaryNodeChildString(descChild, 'body');
-		descId = descChild.attrs.id;
-	}
+	return extractGroupMetadata(group);
+};
 
-	if (isCommunity) {
-		community = {
-			parent: !!getBinaryNodeChild(group, 'parent'),
-			incognito: !!getBinaryNodeChild(group, 'incognito'),
-			allowNonAdminSubGroupCreation: !!getBinaryNodeChild(group, 'allow_non_admin_sub_group_creation'),
-			membershipApprovalMode: getBinaryNodeChild(group, 'parent')?.attrs
-				?.default_membership_approval_mode,
-			linkedParentId: getBinaryNodeChild(group, 'linked_parent')?.attrs?.jid,
-			default: !!getBinaryNodeChild(group, 'default_sub_group'),
-		};
-	}
+export const extractGroupMetadata = (group: BinaryNode) => {
+	if (!Array.isArray(group?.content)) throw new Error('group node is not an array');
 
-	const groupId = group.attrs.id.includes('@') ? group.attrs.id : jidEncode(group.attrs.id, 'g.us');
-	const eph = getBinaryNodeChild(group, 'ephemeral')?.attrs.expiration;
-	const memberAddMode = getBinaryNodeChildString(group, 'member_add_mode') === 'all_member_add';
-	const metadata: GroupMetadata = {
-		id: groupId,
+	const metadata = {
+		id: group.attrs.id.includes('@') ? group.attrs.id : jidEncode(group.attrs.id, 'g.us'),
 		subject: group.attrs.subject,
 		subjectOwner: group.attrs.s_o,
 		subjectTime: +group.attrs.s_t,
-		size: getBinaryNodeChildren(group, 'participant').length,
 		creation: +group.attrs.creation,
 		owner: group.attrs.creator ? jidNormalizedUser(group.attrs.creator) : undefined,
-		desc,
-		descId,
-		linkedParent: getBinaryNodeChild(group, 'linked_parent')?.attrs.jid || undefined,
-		community,
-		restrict: !!getBinaryNodeChild(group, 'locked'),
-		announce: !!getBinaryNodeChild(group, 'announcement'),
-		isCommunity: !!getBinaryNodeChild(group, 'parent'),
-		isCommunityAnnounce: !!getBinaryNodeChild(group, 'default_sub_group'),
-		joinApprovalMode: !!getBinaryNodeChild(group, 'membership_approval_mode'),
-		memberAddMode,
-		participants: getBinaryNodeChildren(group, 'participant').map(({ attrs }) => {
-			return {
-				id: attrs.jid,
-				admin: (attrs.type || null) as GroupParticipant['admin'],
-				lid: attrs.lid,
-			};
-		}),
-		ephemeralDuration: eph ? +eph : undefined,
-	};
+		restrict: false,
+		announce: false,
+		isCommunity: false,
+		isCommunityAnnounce: false,
+		joinApprovalMode: false,
+		participants: [],
+		memberAddMode: false,
+	} as GroupMetadata;
+
+	for (const node of group.content) {
+		switch (node.tag) {
+			case 'announcement':
+				metadata.announce = true;
+				break;
+			case 'locked':
+				metadata.restrict = true;
+				break;
+			case 'ephemeral':
+				if (!node.attrs.expiration) continue;
+
+				metadata.ephemeralDuration = +node.attrs.expiration;
+				break;
+			case 'participant':
+				metadata.participants.push({
+					id: node.attrs.jid,
+					admin: (node.attrs.type || null) as GroupParticipant['admin'],
+					lid: node.attrs.lid,
+				});
+				break;
+			case 'description':
+				metadata.desc = getBinaryNodeChildString(node, 'body');
+				metadata.descId = node.attrs.id;
+				break;
+			case 'incognito':
+				metadata.incognito = true;
+				break;
+			case 'default_sub_group':
+				metadata.isCommunityAnnounce = true;
+				break;
+			case 'linked_parent':
+				metadata.linkedParent = node.attrs.jid;
+				break;
+			case 'allow_non_admin_sub_group_creation':
+				metadata.allowNonAdminSubGroupCreation = true;
+				break;
+			case 'membership_approval_mode':
+				metadata.joinApprovalMode = true;
+				break;
+			case 'member_add_mode':
+				metadata.memberAddMode = getBinaryNodeContentString(node) === 'all_member_add';
+				break;
+			case 'parent':
+				metadata.isCommunity = true;
+
+				if (node.attrs.default_membership_approval_mode) {
+					metadata.joinApprovalMode = true;
+				}
+
+				break;
+		}
+	}
+
+	metadata.size = metadata.participants.length;
+
 	return metadata;
+};
+
+export const extractGroupId = (group: BinaryNode) => {
+	return group.attrs.id.includes('@') ? group.attrs.id : jidEncode(group.attrs.id, 'g.us');
 };

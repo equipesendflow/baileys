@@ -43,7 +43,7 @@ import {
 	JidWithDevice,
 	S_WHATSAPP_NET,
 } from '../WABinary';
-import { extractGroupMetadata } from './groups';
+import { extractResultGroupMetadata } from './groups';
 import { makeMessagesSocket } from './messages-send';
 import { Boom } from '@hapi/boom';
 import { WebSocket } from 'ws';
@@ -249,7 +249,7 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 	) => {
 		switch (child?.tag) {
 			case 'create':
-				const metadata = extractGroupMetadata(child);
+				const metadata = extractResultGroupMetadata(child);
 
 				msg.messageStubType = WAMessageStubType.GROUP_CREATE;
 				msg.messageStubParameters = [metadata.subject];
