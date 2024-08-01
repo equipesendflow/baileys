@@ -21,6 +21,7 @@ import {
 } from '../WABinary';
 import { Curve, generateSignalPubKey } from './crypto';
 import { encodeBigEndian } from './generics';
+import { asyncAll } from './parallel';
 import { chunk } from './utils';
 
 export const createSignalIdentity = (wid: string, accountSignatureKey: Uint8Array): SignalIdentity => {
@@ -96,7 +97,7 @@ export const parseAndInjectE2ESessions = async (node: BinaryNode, repository: Si
 	const chunks = chunk(nodes, 100);
 
 	for (const nodesChunk of chunks) {
-		await Promise.all(
+		await asyncAll(
 			nodesChunk.map(async node => {
 				const signedKey = getBinaryNodeChild(node, 'skey')!;
 				const key = getBinaryNodeChild(node, 'key')!;
@@ -118,29 +119,30 @@ export const parseAndInjectE2ESessions = async (node: BinaryNode, repository: Si
 	}
 };
 
-export const extractDeviceJids = (result: BinaryNode, myJid: string, excludeZeroDevices: boolean) => {
-	// const { user: myUser, device: myDevice } = jidDecode(myJid)!
+export const extractDeviceJids = (result: BinaryNode, excludeZeroDevices: boolean) => {
 	const extracted: JidWithDevice[] = [];
+
 	for (const node of result.content as BinaryNode[]) {
 		const list = getBinaryNodeChild(node, 'list')?.content;
-		if (list && Array.isArray(list)) {
-			for (const item of list) {
-				const { user } = jidDecode(item.attrs.jid)!;
-				const devicesNode = getBinaryNodeChild(item, 'devices');
-				const deviceListNode = getBinaryNodeChild(devicesNode, 'device-list');
-				if (Array.isArray(deviceListNode?.content)) {
-					for (const { tag, attrs } of deviceListNode!.content) {
-						const device = +attrs.id;
-						if (
-							tag === 'device' && // ensure the "device" tag
-							(!excludeZeroDevices || device !== 0) && // if zero devices are not-excluded, or device is non zero
-							// (myUser !== user || myDevice !== device) && // either different user or if me user, not this device
-							(device === 0 || !!attrs['key-index']) // ensure that "key-index" is specified for "non-zero" devices, produces a bad req otherwise
-						) {
-							extracted.push({ user, device });
-						}
-					}
-				}
+
+		if (!Array.isArray(list)) continue;
+
+		for (const item of list) {
+			const user = item.attrs.jid.split('@')[0];
+			const devicesNode = getBinaryNodeChild(item, 'devices');
+			const deviceListNode = getBinaryNodeChild(devicesNode, 'device-list');
+
+			if (!Array.isArray(deviceListNode?.content)) continue;
+
+			for (const node of deviceListNode!.content) {
+				if (node.tag !== 'device') continue;
+				const device = +node.attrs.id;
+
+				// ensure that "key-index" is specified for "non-zero" devices, produces a bad req otherwise
+				if (device !== 0 && !node.attrs['key-index']) continue;
+				if (excludeZeroDevices && device === 0) continue;
+
+				extracted.push({ user, device });
 			}
 		}
 	}

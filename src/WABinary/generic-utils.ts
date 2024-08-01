@@ -2,35 +2,30 @@ import { Boom } from '@hapi/boom';
 import { proto } from '../../WAProto';
 import { BinaryNode } from './types';
 
-// some extra useful utilities
-
 export const getBinaryNodeChildren = (node: BinaryNode | undefined, childTag: string) => {
-	if (Array.isArray(node?.content)) {
-		return node!.content.filter(item => item.tag === childTag);
-	}
+	if (!Array.isArray(node?.content)) return [];
 
-	return [];
+	return node!.content.filter(item => item.tag === childTag);
 };
 
-export const getAllBinaryNodeChildren = ({ content }: BinaryNode) => {
-	if (Array.isArray(content)) {
-		return content;
-	}
+export const getAllBinaryNodeChildren = (node: BinaryNode) => {
+	if (!Array.isArray(node?.content)) return [];
 
-	return [];
+	return node.content;
 };
 
 export const getBinaryNodeChild = (node: BinaryNode | undefined, childTag: string) => {
-	if (Array.isArray(node?.content)) {
-		return node?.content.find(item => item.tag === childTag);
-	}
+	if (!Array.isArray(node?.content)) return;
+
+	return node?.content.find(item => item.tag === childTag);
 };
 
 export const getBinaryNodeChildBuffer = (node: BinaryNode | undefined, childTag: string) => {
 	const child = getBinaryNodeChild(node, childTag)?.content;
-	if (Buffer.isBuffer(child) || child instanceof Uint8Array) {
-		return child;
-	}
+
+	if (!Buffer.isBuffer(child) && !(child instanceof Uint8Array)) return;
+
+	return child;
 };
 
 export const getBinaryNodeContentString = (node: BinaryNode) => {
@@ -45,6 +40,7 @@ export const getBinaryNodeContentString = (node: BinaryNode) => {
 
 export const getBinaryNodeChildString = (node: BinaryNode | undefined, childTag: string) => {
 	const child = getBinaryNodeChild(node, childTag)?.content;
+
 	if (Buffer.isBuffer(child) || child instanceof Uint8Array) {
 		return Buffer.from(child).toString('utf-8');
 	} else if (typeof child === 'string') {
@@ -54,36 +50,38 @@ export const getBinaryNodeChildString = (node: BinaryNode | undefined, childTag:
 
 export const getBinaryNodeChildUInt = (node: BinaryNode, childTag: string, length: number) => {
 	const buff = getBinaryNodeChildBuffer(node, childTag);
-	if (buff) {
-		return bufferToUInt(buff, length);
-	}
+
+	if (!buff) return;
+
+	return bufferToUInt(buff, length);
 };
 
 export const assertNodeErrorFree = (node: BinaryNode) => {
 	const errNode = getBinaryNodeChild(node, 'error');
 
-	if (errNode) {
-		throw new Boom(errNode.attrs.text || 'Unknown error', { data: +errNode.attrs.code });
-	}
+	if (!errNode) return;
+
+	throw new Boom(errNode.attrs.text || 'Unknown error', { data: +errNode.attrs.code });
 };
 
 export const reduceBinaryNodeToDictionary = (node: BinaryNode, tag: string) => {
 	const nodes = getBinaryNodeChildren(node, tag);
-	const dict = nodes.reduce((dict, { attrs }) => {
-		dict[attrs.name || attrs.config_code] = attrs.value || attrs.config_value;
+	const dict = nodes.reduce((dict, node) => {
+		dict[node.attrs.name || node.attrs.config_code] = node.attrs.value || node.attrs.config_value;
 		return dict;
 	}, {} as { [_: string]: string });
 	return dict;
 };
 
-export const getBinaryNodeMessages = ({ content }: BinaryNode) => {
+export const getBinaryNodeMessages = (node: BinaryNode) => {
+	if (!Array.isArray(node.content)) return [];
+
 	const msgs: proto.WebMessageInfo[] = [];
-	if (Array.isArray(content)) {
-		for (const item of content) {
-			if (item.tag === 'message') {
-				msgs.push(proto.WebMessageInfo.decode(item.content as Buffer));
-			}
-		}
+
+	for (const item of node.content) {
+		if (item.tag !== 'message') continue;
+
+		msgs.push(proto.WebMessageInfo.decode(item.content as Buffer));
 	}
 
 	return msgs;

@@ -362,38 +362,30 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 
 				const from = jidNormalizedUser(node.attrs.from);
 
-				const user = jidDecode(from)?.user;
-
-				if (!user) return;
-
 				for (const child of getAllBinaryNodeChildren(node)) {
 					const type = child.tag as 'add' | 'remove' | 'update';
 
 					if (type !== 'add' && type !== 'remove') {
-						deviceCache.del(user);
+						deviceCache.del(from);
 						return;
 					}
 
-					const currentDevices = deviceCache.get<JidWithDevice[]>(user);
+					const currentDevices = deviceCache.get<string[]>(from);
 
 					if (!currentDevices?.length) return;
 
 					for (const rawDevice of getBinaryNodeChildren(child, 'device')) {
 						if (!rawDevice.attrs['key-index']) {
-							deviceCache.del(user);
+							deviceCache.del(from);
 							return;
 						}
 
-						const item = jidDecode(rawDevice.attrs.jid);
-
-						if (!item) break;
-
 						if (type === 'add') {
-							currentDevices.push(item);
+							currentDevices.push(rawDevice.attrs.jid);
 						}
 
 						if (type === 'remove') {
-							const index = currentDevices.findIndex(d => d.device === item.device);
+							const index = currentDevices.findIndex(d => d === rawDevice.attrs.jid);
 
 							if (index >= 0) {
 								currentDevices.splice(index, 1);
@@ -402,12 +394,12 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 					}
 
 					const device_hash = child.attrs.device_hash;
-					const new_dhash = participantListHashV2(currentDevices);
+					const new_dhash = participantListHashV2(currentDevices.map(jid => jidDecode(jid)!));
 
 					if (device_hash !== new_dhash) {
-						deviceCache.del(user);
+						deviceCache.del(from);
 					} else {
-						deviceCache.set(user, currentDevices);
+						deviceCache.set(from, currentDevices);
 					}
 				}
 
@@ -473,19 +465,21 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 				if (child.tag === 'devices') {
 					const from = jidNormalizedUser(node.attrs.from);
 
-					const user = jidDecode(from)?.user;
+					// const user = jidDecode(from)?.user;
 
-					if (!user) return;
+					// if (!user) return;
 
 					const userDevicesCache = config.userDevicesCache;
 
 					if (!userDevicesCache) return;
 
-					const devices = getBinaryNodeChildren(child, 'device').map(item => {
-						return jidDecode(item.attrs.jid)!;
-					});
+					const meId = authState.creds.me!.id;
 
-					userDevicesCache.set(user, devices);
+					const devices = getBinaryNodeChildren(child, 'device')
+						.map(item => item.attrs.jid)
+						.filter(it => it !== meId);
+
+					userDevicesCache.set(from, devices);
 				}
 
 				break;
@@ -815,18 +809,6 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 	const handleMessageResponse = async (node: BinaryNode) => {
 		const { attrs } = node;
 		const key: WAMessageKey = { remoteJid: attrs.from, fromMe: true, id: attrs.id };
-		// current hypothesis is that if pash is sent in the ack
-		// it means -- the message hasn't reached all devices yet
-		// we'll retry sending the message here
-		// if (attrs.phash) {
-		// 	logger.error(node, 'received phash in ack');
-		// const msg = await getMessage(key);
-		// if (msg) {
-		// 	await relayMessage(key.remoteJid!, msg, { messageId: key.id!, useUserDevicesCache: false });
-		// } else {
-		// 	logger.error(node, 'could not send message again, as it was not found');
-		// }
-		// }
 
 		// if(!attrs.phash) {
 		// 	logger.info(node, 'handling bad ack, no phash, resending message...')

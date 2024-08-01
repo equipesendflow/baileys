@@ -825,36 +825,13 @@ export const processSyncAction = (
 	}
 };
 
-// func participantListHashV2(participants []types.JID) string {
-// 	participantsStrings := make([]string, len(participants))
-// 	for i, part := range participants {
-// 		participantsStrings[i] = part.ADString()
-// 	}
-
-// 	sort.Strings(participantsStrings)
-// 	hash := sha256.Sum256([]byte(strings.Join(participantsStrings, "")))
-// 	return fmt.Sprintf("2:%s", base64.RawStdEncoding.EncodeToString(hash[:6]))
-// }
-
-export function participantListHashV2(participants: JidWithDevice[]): string {
-	const participantsStrings = participants
+export function participantListHashV2(participants: JidWithDevice[]) {
+	const participantsString = participants
 		.map(part => jidEncodeADString(part.user, 's.whatsapp.net', part.device))
-		.sort();
+		.sort()
+		.join('');
 
-	const hash = sha256(participantsStrings.join(''));
-
-	// const base64Hash = hash.slice(0, 6).toString('base64')
-	// return "2:" + encodeBase64(hash.slice(0, 6))
+	const hash = sha256(participantsString);
 
 	return '2:' + hash.slice(0, 6).toString('base64');
-
-	// Cria um hash SHA-256 das strings concatenadas
-	// const hash = crypto.createHash('sha256').update(participantsStrings.join('')).digest();
-
-	// // Codifica os primeiros 6 bytes do hash em base64 (URL Safe)
-	// // const base64Hash = base64url.encode(hash.slice(0, 6).toString());
-	// const base64Hash = hash.slice(0, 6).toString('base64').replace(/=+$/, '').replace(/\+/g, '-').replace(/\//g, '_');
-
-	// // Retorna a string no formato requerido
-	// return `2:${base64Hash}`;
 }
