@@ -19,14 +19,12 @@ import {
 	encodeSignedDeviceIdentity,
 	encodeWAMessage,
 	encryptMediaRetryRequest,
-	extractDeviceJids,
 	generateMessageID,
 	generateWAMessage,
 	getStatusCodeForMediaRetry,
 	getUrlFromDirectPath,
 	getWAUploadToServer,
 	parseAndInjectE2ESessions,
-	participantListHashV2,
 	unixTimestampSeconds,
 } from '../Utils';
 import { getUrlInfo } from '../Utils/link-preview';
@@ -42,13 +40,13 @@ import {
 	jidEncode,
 	jidNormalizedUser,
 	jidToSignalProtocolAddress,
-	JidWithDevice,
 	S_WHATSAPP_NET,
 } from '../WABinary';
 import { makeGroupsSocket } from './groups';
 import ListType = proto.ListMessage.ListType;
 import { chunk } from '../Utils/utils';
 import { asyncAll } from '../Utils/parallel';
+import { startTimeTracker, trackTime } from '../Utils/time-tracker';
 
 export const makeMessagesSocket = (config: SocketConfig) => {
 	const {
@@ -219,6 +217,10 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 			}
 
 			users.push({ tag: 'user', attrs: { jid } });
+		}
+
+		if (users.length === 0) {
+			return deviceResults;
 		}
 
 		const iq: BinaryNode = {
@@ -434,7 +436,10 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 
 					const participantsList = groupData.participants.map(p => p.id);
 
-					await getUSyncDevices(participantsList, devices, true, false);
+					await trackTime(
+						'getUSyncDevices',
+						getUSyncDevices(participantsList, devices, true, false),
+					);
 				})(),
 				(async () => {
 					if (participant) {
@@ -486,13 +491,17 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 					message.senderKeyDistributionMessage = senderKeyMsg.senderKeyDistributionMessage;
 				}
 
-				await assertSessions(senderKeyJids, false);
+				await trackTime('assertSessions', assertSessions(senderKeyJids, false));
+
+				const finish = startTimeTracker('createParticipantNodes');
 
 				const result = await createParticipantNodes(
 					senderKeyJids,
 					participant ? message : senderKeyMsg,
 					mediaType ? { mediatype: mediaType } : undefined,
 				);
+
+				finish();
 
 				shouldIncludeDeviceIdentity ||= result.shouldIncludeDeviceIdentity;
 
