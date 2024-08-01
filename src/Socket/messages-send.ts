@@ -445,11 +445,17 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 					if (participant) {
 						return {};
 					}
+					const finish = startTimeTracker('get sender-key-memory');
 
 					const result = await authState.keys.get('sender-key-memory', [jid]);
+
+					finish();
+
 					return result[jid] || {};
 				})(),
 				(async () => {
+					const finish = startTimeTracker('encryptGroupMessage');
+
 					const bytes = encodeWAMessage(message);
 
 					const { ciphertext, senderKeyDistributionMessage } =
@@ -458,6 +464,8 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 							data: bytes,
 							meId,
 						});
+
+					finish();
 
 					return { ciphertext, senderKeyDistributionMessage };
 				})(),
