@@ -87,8 +87,6 @@ export const makeSocket = ({
 		// routingInfo: authState?.creds?.routingInfo,
 	});
 
-	console.log('routingInfo', authState?.creds?.routingInfo);
-
 	const { creds } = authState;
 	// add transaction capability
 	const keys = addTransactionCapabilitySimple(authState.keys, logger, transactionOpts);
@@ -108,7 +106,6 @@ export const makeSocket = ({
 	const sendRawMessage = async (data: Uint8Array | Buffer) => {
 		const bytes = noise.encodeFrame(data);
 
-		console.log('bytes', bytes);
 		await promiseTimeout<void>(connectTimeoutMs, async (resolve, reject) => {
 			try {
 				if (ws.readyState !== ws.OPEN) {
@@ -263,21 +260,13 @@ export const makeSocket = ({
 			clientHello: { ephemeral: ephemeralKeyPair.public },
 		};
 
-		console.log('helloMsg', helloMsg);
-
 		helloMsg = proto.HandshakeMessage.fromObject(helloMsg);
-
-		console.log('helloMsg', helloMsg);
 
 		logger.info('connected to WA Web');
 
 		const init = proto.HandshakeMessage.encode(helloMsg).finish();
 
-		console.log('init', init);
-
 		const result = await awaitNextMessage<Uint8Array>(init);
-
-		console.log('result', result);
 
 		const handshake = proto.HandshakeMessage.decode(result);
 
