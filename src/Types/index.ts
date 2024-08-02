@@ -26,6 +26,9 @@ export enum DisconnectReason {
     multideviceMismatch = 411
 }
 
+// not-acceptable = 406
+// acontece quando tenta estabelecer uma conexão com um dispositive que não existe
+
 export type WAInitResponse = {
     ref: string
     ttl: number

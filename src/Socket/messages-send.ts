@@ -322,32 +322,38 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 	const assertSessions = async (jids: string[], force: boolean) => {
 		const jidsRequiringFetch = await getJidsRequiringFetch(jids, force);
 
-		const chunks = chunk(jidsRequiringFetch, 200, 0.5);
+		if (!jidsRequiringFetch.length) return [];
 
-		await Promise.all(
-			chunks.map(async ls => {
-				const result = await query({
-					tag: 'iq',
-					attrs: {
-						xmlns: 'encrypt',
-						type: 'get',
-						to: S_WHATSAPP_NET,
+		try {
+			const result = await query({
+				tag: 'iq',
+				attrs: {
+					xmlns: 'encrypt',
+					type: 'get',
+					to: S_WHATSAPP_NET,
+				},
+				content: [
+					{
+						tag: 'key',
+						attrs: {},
+						content: jidsRequiringFetch.map(jid => ({
+							tag: 'user',
+							attrs: { jid },
+						})),
 					},
-					content: [
-						{
-							tag: 'key',
-							attrs: {},
-							content: ls.map(jid => ({
-								tag: 'user',
-								attrs: { jid },
-							})),
-						},
-					],
-				});
+				],
+			});
 
-				await parseAndInjectE2ESessions(result, signalRepository);
-			}),
-		);
+			return parseAndInjectE2ESessions(result, signalRepository);
+		} catch (e: any) {
+			// console.error('Error on assertSessions');
+			// console.error(e.name, e.message, e.code);
+			// console.error(e);
+
+			if (e.message === 'not-acceptable') return [];
+
+			throw e;
+		}
 	};
 
 	const createParticipantNodes = async (
@@ -359,31 +365,46 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 
 		let shouldIncludeDeviceIdentity = false;
 
-		const nodes = await Promise.all(
+		const nodes: BinaryNode[] = [];
+
+		await asyncAll(
 			jids.map(async jid => {
-				const { type, ciphertext } = await signalRepository.encryptMessage({ jid, data });
+				try {
+					const { type, ciphertext } = await signalRepository.encryptMessage({ jid, data });
 
-				if (type === 'pkmsg') {
-					shouldIncludeDeviceIdentity = true;
-				}
+					if (type === 'pkmsg') {
+						shouldIncludeDeviceIdentity = true;
+					}
 
-				const node: BinaryNode = {
-					tag: 'to',
-					attrs: { jid },
-					content: [
-						{
-							tag: 'enc',
-							attrs: {
-								v: '2',
-								type,
-								...(extraAttrs || {}),
+					const node: BinaryNode = {
+						tag: 'to',
+						attrs: { jid },
+						content: [
+							{
+								tag: 'enc',
+								attrs: {
+									v: '2',
+									type,
+									...(extraAttrs || {}),
+								},
+								content: ciphertext,
 							},
-							content: ciphertext,
-						},
-					],
-				};
+						],
+					};
 
-				return node;
+					nodes.push(node);
+				} catch (e: any) {
+					logger.error(e, 'Error on encrypting message');
+
+					if (e.message === 'No sessions') {
+						const jidNormalized = jidNormalizedUser(jid);
+						userDevicesCache.del(jidNormalized);
+						return;
+					}
+					if (e.message === 'No open session') return;
+
+					throw e;
+				}
 			}),
 		);
 
@@ -499,12 +520,15 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 					message.senderKeyDistributionMessage = senderKeyMsg.senderKeyDistributionMessage;
 				}
 
-				await trackTime('assertSessions', assertSessions(senderKeyJids, false));
+				const needSessionJids = await trackTime(
+					'assertSessions',
+					assertSessions(senderKeyJids, false),
+				);
 
 				const finish = startTimeTracker('createParticipantNodes');
 
 				const result = await createParticipantNodes(
-					senderKeyJids,
+					participant ? senderKeyJids : needSessionJids,
 					participant ? message : senderKeyMsg,
 					mediaType ? { mediatype: mediaType } : undefined,
 				);
@@ -636,18 +660,6 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 		return msgId;
 	};
 
-	const getMessageType = (message: proto.IMessage) => {
-		const mediaType = getMediaType(message);
-
-		if (mediaType) {
-			return 'media';
-		} else if (message.reactionMessage) {
-			return 'reaction';
-		}
-
-		return 'text';
-	};
-
 	const getMediaType = (message: proto.IMessage) => {
 		if (message.imageMessage) {
 			return 'image';
@@ -677,35 +689,6 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 			return 'product';
 		} else if (message.interactiveResponseMessage) {
 			return 'native_flow_response';
-		}
-	};
-
-	const getButtonType = (message: proto.IMessage) => {
-		if (message.buttonsMessage) {
-			return 'buttons';
-		} else if (message.buttonsResponseMessage) {
-			return 'buttons_response';
-		} else if (message.interactiveResponseMessage) {
-			return 'interactive_response';
-		} else if (message.listMessage) {
-			return 'list';
-		} else if (message.listResponseMessage) {
-			return 'list_response';
-		}
-	};
-
-	const getButtonArgs = (message: proto.IMessage): BinaryNode['attrs'] => {
-		if (message.templateMessage) {
-			// TODO: Add attributes
-			return {};
-		} else if (message.listMessage) {
-			const type = message.listMessage.listType;
-			if (!type) {
-				throw new Boom('Expected list type inside message');
-			}
-			return { v: '2', type: ListType[type].toLowerCase() };
-		} else {
-			return {};
 		}
 	};
 

@@ -94,29 +94,31 @@ export const parseAndInjectE2ESessions = async (node: BinaryNode, repository: Si
 		assertNodeErrorFree(node);
 	}
 
-	const chunks = chunk(nodes, 100);
+	const jids: string[] = new Array(nodes.length);
 
-	for (const nodesChunk of chunks) {
-		await asyncAll(
-			nodesChunk.map(async node => {
-				const signedKey = getBinaryNodeChild(node, 'skey')!;
-				const key = getBinaryNodeChild(node, 'key')!;
-				const identity = getBinaryNodeChildBuffer(node, 'identity')!;
-				const jid = node.attrs.jid;
-				const registrationId = getBinaryNodeChildUInt(node, 'registration', 4);
+	await asyncAll(
+		nodes.map(async node => {
+			const signedKey = getBinaryNodeChild(node, 'skey')!;
+			const key = getBinaryNodeChild(node, 'key')!;
+			const identity = getBinaryNodeChildBuffer(node, 'identity')!;
+			const jid = node.attrs.jid;
+			const registrationId = getBinaryNodeChildUInt(node, 'registration', 4);
 
-				await repository.injectE2ESession({
-					jid,
-					session: {
-						registrationId: registrationId!,
-						identityKey: generateSignalPubKey(identity),
-						signedPreKey: extractKey(signedKey)!,
-						preKey: extractKey(key)!,
-					},
-				});
-			}),
-		);
-	}
+			jids.push(jid);
+
+			await repository.injectE2ESession({
+				jid,
+				session: {
+					registrationId: registrationId!,
+					identityKey: generateSignalPubKey(identity),
+					signedPreKey: extractKey(signedKey)!,
+					preKey: extractKey(key)!,
+				},
+			});
+		}),
+	);
+
+	return jids;
 };
 
 export const extractDeviceJids = (result: BinaryNode, excludeZeroDevices: boolean) => {
