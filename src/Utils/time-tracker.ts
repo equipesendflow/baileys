@@ -8,7 +8,7 @@ export function startTimeTracker(name: string) {
 
 		if (obs) name = `${obs} ${name}`;
 
-		console.log(`Track ${name} - Took ${millisecondsToDuration(endTime - startTime)}`);
+		// console.log(`Track ${name} - Took ${millisecondsToDuration(endTime - startTime)}`);
 	};
 }
 

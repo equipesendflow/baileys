@@ -517,6 +517,8 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 			}
 
 			if (!participant) {
+				// console.log('devices', devices);
+
 				const senderKeyJids: string[] = [];
 
 				for (const jid of devices) {
