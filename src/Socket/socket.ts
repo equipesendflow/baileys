@@ -62,9 +62,9 @@ export const makeSocket = ({
 }: SocketConfig) => {
 	let url = typeof waWebSocketUrl === 'string' ? new URL(waWebSocketUrl) : waWebSocketUrl;
 
-	if (url.protocol === 'wss' && authState?.creds?.routingInfo) {
-		url.searchParams.append('ED', authState.creds.routingInfo.toString('base64url'));
-	}
+	// if (url.protocol === 'wss' && authState?.creds?.routingInfo) {
+	// 	url.searchParams.append('ED', authState.creds.routingInfo.toString('base64url'));
+	// }
 
 	const ws = new WebSocket(url, undefined, {
 		origin: DEFAULT_ORIGIN,
@@ -84,8 +84,10 @@ export const makeSocket = ({
 		NOISE_HEADER: NOISE_WA_HEADER,
 		mobile: false,
 		logger,
-		routingInfo: authState?.creds?.routingInfo,
+		// routingInfo: authState?.creds?.routingInfo,
 	});
+
+	console.log('routingInfo', authState?.creds?.routingInfo);
 
 	const { creds } = authState;
 	// add transaction capability
@@ -105,6 +107,8 @@ export const makeSocket = ({
 	/** send a raw buffer */
 	const sendRawMessage = async (data: Uint8Array | Buffer) => {
 		const bytes = noise.encodeFrame(data);
+
+		console.log('bytes', bytes);
 		await promiseTimeout<void>(connectTimeoutMs, async (resolve, reject) => {
 			try {
 				if (ws.readyState !== ws.OPEN) {
@@ -258,13 +262,23 @@ export const makeSocket = ({
 		let helloMsg: proto.IHandshakeMessage = {
 			clientHello: { ephemeral: ephemeralKeyPair.public },
 		};
+
+		console.log('helloMsg', helloMsg);
+
 		helloMsg = proto.HandshakeMessage.fromObject(helloMsg);
+
+		console.log('helloMsg', helloMsg);
 
 		logger.info('connected to WA Web');
 
 		const init = proto.HandshakeMessage.encode(helloMsg).finish();
 
+		console.log('init', init);
+
 		const result = await awaitNextMessage<Uint8Array>(init);
+
+		console.log('result', result);
+
 		const handshake = proto.HandshakeMessage.decode(result);
 
 		logger.trace({ handshake }, 'handshake recv from WA Web');
@@ -629,6 +643,8 @@ export const makeSocket = ({
 	ws.on('CB:ib,,edge_routing', (node: BinaryNode) => {
 		const edgeRoutingNode = getBinaryNodeChild(node, 'edge_routing');
 		const routingInfo = getBinaryNodeChild(edgeRoutingNode, 'routing_info');
+		console.log('routingInfo', authState?.creds?.routingInfo);
+
 		if (routingInfo?.content) {
 			authState.creds.routingInfo = Buffer.from(routingInfo?.content as Uint8Array);
 			ev.emit('creds.update', authState.creds);
