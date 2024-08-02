@@ -1,10 +1,10 @@
 import { millisecondsToDuration } from './to-duration';
 
 export function startTimeTracker(name: string) {
-	const startTime = Date.now();
+	const startTime = performance.now();
 
 	return (obs: string = '') => {
-		const endTime = Date.now();
+		const endTime = performance.now();
 
 		if (obs) name = `${obs} ${name}`;
 
@@ -39,5 +39,23 @@ export function trackTimeCb<T>(name: string, callback: (...args: any[]) => Promi
 			finish();
 			throw e;
 		}
+	};
+}
+
+export function TrackTime(name: string) {
+	return function (target: any, propertyKey: string, descriptor: PropertyDescriptor) {
+		const originalMethod = descriptor.value;
+
+		descriptor.value = function (...args: any[]) {
+			const finish = startTimeTracker(name);
+
+			const result = Promise.resolve().then(() => originalMethod.apply(this, args));
+
+			result.finally(finish);
+
+			return result;
+		};
+
+		return descriptor;
 	};
 }

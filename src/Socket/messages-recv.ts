@@ -514,9 +514,9 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 		const sendToAll = false;
 		await assertSessions([participant], true);
 
-		if (isJidGroup(remoteJid)) {
-			await authState.keys.set({ 'sender-key-memory': { [remoteJid]: null } });
-		}
+		// if (isJidGroup(remoteJid)) {
+		// 	await authState.keys.set({ 'sender-key-memory': { [remoteJid]: null } });
+		// }
 
 		logger.debug({ participant, sendToAll }, 'forced new session for retry recp');
 

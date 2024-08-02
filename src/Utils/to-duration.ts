@@ -21,9 +21,10 @@ export function secondsToDuration(secs: number) {
 }
 
 export function millisecondsToDuration(ms: number) {
-	if (!ms) return '0ms';
+	if (!ms) return '0µs';
 
-	const restMilliseconds = ms % 1000;
+	const restMicroseconds = Math.floor((ms * 1000) % 1000);
+	const restMilliseconds = Math.floor(ms % 1000);
 	const totalSeconds = Math.floor(safeDivision(ms, 1000));
 	const restSeconds = Math.floor(totalSeconds % 60);
 	const totalMinutes = Math.floor(safeDivision(totalSeconds, 60));
@@ -40,12 +41,16 @@ export function millisecondsToDuration(ms: number) {
 		stringBuilder.push(`${restMinutes}m`);
 	}
 
-	if (restMilliseconds && !restSeconds) {
-		stringBuilder.push(`${restMilliseconds}ms`);
-	} else if (restMilliseconds && restSeconds) {
-		stringBuilder.push(`${(restSeconds + restMilliseconds / 1000).toFixed(2)}s`);
-	} else if (restSeconds) {
+	if (restSeconds) {
 		stringBuilder.push(`${restSeconds}s`);
+	}
+
+	if (restMilliseconds) {
+		stringBuilder.push(`${restMilliseconds}ms`);
+	}
+
+	if (restMicroseconds) {
+		stringBuilder.push(`${restMicroseconds}µs`);
 	}
 
 	return stringBuilder.join(' ');

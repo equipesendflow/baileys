@@ -442,6 +442,7 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 		}
 
 		const mediaType = getMediaType(message);
+		const extraAttrs = mediaType ? { mediatype: mediaType } : undefined;
 
 		if (isGroup) {
 			const [_, senderKeyMap, { ciphertext, senderKeyDistributionMessage }] = await Promise.all([
@@ -492,46 +493,21 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 				})(),
 			]);
 
-			const senderKeyJids: string[] = participant ? devices : [];
+			const senderKeyMsg: proto.IMessage = {
+				senderKeyDistributionMessage: {
+					axolotlSenderKeyDistributionMessage: senderKeyDistributionMessage,
+					groupId: destinationJid,
+				},
+			};
 
-			if (!participant) {
-				// ensure a connection is established with every device
-				for (const jid of devices) {
-					if (senderKeyMap[jid]) continue;
+			if (participant) {
+				message.senderKeyDistributionMessage = senderKeyMsg.senderKeyDistributionMessage;
 
-					senderKeyJids.push(jid);
-
-					// store that this person has had the sender keys sent to them
-					senderKeyMap[jid] = true;
-				}
-			}
-
-			// if there are some participants with whom the session has not been established
-			// if there are, we re-send the senderkey
-			if (senderKeyJids.length) {
-				const senderKeyMsg: proto.IMessage = {
-					senderKeyDistributionMessage: {
-						axolotlSenderKeyDistributionMessage: senderKeyDistributionMessage,
-						groupId: destinationJid,
-					},
-				};
-
-				if (participant) {
-					message.senderKeyDistributionMessage = senderKeyMsg.senderKeyDistributionMessage;
-				}
-
-				const needSessionJids = await trackTime(
-					'assertSessions',
-					assertSessions(senderKeyJids, false),
-				);
+				await trackTime('assertSessions', assertSessions(devices, false));
 
 				const finish = startTimeTracker('createParticipantNodes');
 
-				const result = await createParticipantNodes(
-					participant ? senderKeyJids : needSessionJids,
-					participant ? message : senderKeyMsg,
-					mediaType ? { mediatype: mediaType } : undefined,
-				);
+				const result = await createParticipantNodes(devices, message, extraAttrs);
 
 				finish();
 
@@ -541,6 +517,31 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 			}
 
 			if (!participant) {
+				const senderKeyJids: string[] = [];
+
+				for (const jid of devices) {
+					if (senderKeyMap[jid]) continue;
+
+					senderKeyJids.push(jid);
+
+					senderKeyMap[jid] = true;
+				}
+
+				const needSessionJids = await trackTime(
+					'assertSessions',
+					assertSessions(senderKeyJids, false),
+				);
+
+				const finish = startTimeTracker('createParticipantNodes');
+
+				const result = await createParticipantNodes(needSessionJids, senderKeyMsg, extraAttrs);
+
+				finish();
+
+				shouldIncludeDeviceIdentity ||= result.shouldIncludeDeviceIdentity;
+
+				participants.push(...result.nodes);
+
 				const enc: BinaryNode = {
 					tag: 'enc',
 					attrs: { v: '2', type: 'skmsg' },
@@ -548,9 +549,7 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 				};
 
 				binaryNodeContent.push(enc);
-			}
 
-			if (!participant) {
 				authState.keys.set({ 'sender-key-memory': { [jid]: senderKeyMap } });
 			}
 		} else {
@@ -590,8 +589,8 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 				{ nodes: meNodes, shouldIncludeDeviceIdentity: s1 },
 				{ nodes: otherNodes, shouldIncludeDeviceIdentity: s2 },
 			] = await Promise.all([
-				createParticipantNodes(meJids, meMsg, mediaType ? { mediatype: mediaType } : undefined),
-				createParticipantNodes(otherJids, message, mediaType ? { mediatype: mediaType } : undefined),
+				createParticipantNodes(meJids, meMsg, extraAttrs),
+				createParticipantNodes(otherJids, message, extraAttrs),
 			]);
 
 			participants.push(...meNodes);
