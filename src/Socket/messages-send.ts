@@ -181,12 +181,9 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 	};
 
 	/** Fetch all the devices we've to send a message to */
-	const getUSyncDevices = async (
-		jids: string[],
-		deviceResults: string[],
-		useCache: boolean,
-		ignoreZeroDevices: boolean,
-	) => {
+	const getUSyncDevices = async (jids: string[], useCache: boolean, ignoreZeroDevices: boolean) => {
+		const deviceResults: string[] = [];
+
 		const users: BinaryNode[] = [];
 
 		for (let jid of jids) {
@@ -430,23 +427,13 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 		const participants: BinaryNode[] = [];
 		const destinationJid = jidEncode(user, isGroup ? 'g.us' : 's.whatsapp.net');
 		const binaryNodeContent: BinaryNode[] = [];
-		const devices: string[] = [];
-
-		if (participant) {
-			// when the retry request is not for a group
-			// only send to the specific device that asked for a retry
-			// otherwise the message is sent out to every device that should be a recipient
-			if (!isGroup) {
-				additionalAttributes = { ...additionalAttributes, device_fanout: 'false' };
-			}
-
-			devices.push(participant.jid);
-		}
 
 		const mediaType = getMediaType(message);
 		const extraAttrs = mediaType ? { mediatype: mediaType } : undefined;
 
 		if (isGroup) {
+			let devices: string[] = [];
+
 			const [_, senderKeyMap, { ciphertext, senderKeyDistributionMessage }] = await Promise.all([
 				(async () => {
 					if (participant) return;
@@ -460,9 +447,9 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 
 					const participantsList = groupData.participants.map(p => p.id);
 
-					await trackTime(
+					devices = await trackTime(
 						'getUSyncDevices',
-						getUSyncDevices(participantsList, devices, true, false),
+						getUSyncDevices(participantsList, true, false),
 					);
 				})(),
 				(async () => {
@@ -503,6 +490,8 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 			};
 
 			if (participant) {
+				devices.push(participant.jid);
+
 				message.senderKeyDistributionMessage = senderKeyMsg.senderKeyDistributionMessage;
 
 				await trackTime('assertSessions', assertSessions(devices, false));
@@ -552,30 +541,30 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 				authState.keys.set({ 'sender-key-memory': { [jid]: senderKeyMap } });
 			}
 		} else {
-			if (!participant) {
+			let devices: string[] = [];
+
+			if (participant) {
+				additionalAttributes = { ...additionalAttributes, device_fanout: 'false' };
+				devices.push(participant.jid);
+			} else {
 				devices.push(jid);
 				devices.push(jidEncode(myUser, 's.whatsapp.net'));
 
-				await getUSyncDevices(devices, devices, !!useUserDevicesCache, true);
+				devices = await getUSyncDevices(devices, !!useUserDevicesCache, true);
 			}
 
-			const allJids: string[] = [];
 			const meJids: string[] = [];
 			const otherJids: string[] = [];
 
 			for (const jid of devices) {
-				const isMe = jidDecode(jid)?.user === myUser;
-
-				if (isMe) {
+				if (jid.startsWith(myUser)) {
 					meJids.push(jid);
 				} else {
 					otherJids.push(jid);
 				}
-
-				allJids.push(jid);
 			}
 
-			await assertSessions(allJids, false);
+			await assertSessions(devices, false);
 
 			const meMsg: proto.IMessage = {
 				deviceSentMessage: {
