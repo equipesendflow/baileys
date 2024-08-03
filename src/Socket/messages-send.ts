@@ -190,7 +190,7 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 			if (useCache) {
 				const devices = userDevicesCache.get<string[]>(jid);
 
-				if (devices?.length) {
+				if (devices && devices.length > 0) {
 					deviceResults.push(...devices);
 
 					continue;
