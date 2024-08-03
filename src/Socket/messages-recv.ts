@@ -507,44 +507,24 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 		const msgs = await Promise.all(ids.map(id => getMessage({ ...key, id })));
 		const remoteJid = key.remoteJid!;
 		const participant = key.participant || remoteJid;
-		// if it's the primary jid sending the request
-		// just re-send the message to everyone
-		// prevents the first message decryption failure
-		// const sendToAll = !jidDecode(participant)?.device;
-		const sendToAll = false;
+	
 		await assertSessions([participant], true);
 
 		if (isJidGroup(remoteJid)) {
 			await authState.keys.set({ 'sender-key-memory': { [remoteJid]: null } });
 		}
 
-		logger.debug({ participant, sendToAll }, 'forced new session for retry recp');
-
 		for (let i = 0; i < msgs.length; i++) {
 			const msg = msgs[i];
 
-			if (!msg) {
-				logger.debug(
-					{ jid: key.remoteJid, id: ids[i] },
-					'recv retry request, but message not available',
-				);
-				continue;
-			}
+			if (!msg) continue;
 
 			updateSendMessageAgainCount(ids[i], participant);
 
-			const msgRelayOpts: MessageRelayOptions = { messageId: ids[i] };
-
-			key.id = ids[i];
-
-			if (sendToAll) {
-				msgRelayOpts.useUserDevicesCache = false;
-			} else {
-				msgRelayOpts.participant = {
-					jid: participant,
-					count: +retryNode.attrs.count,
-				};
-			}
+			const msgRelayOpts: MessageRelayOptions = {
+				messageId: ids[i],
+				participant: { jid: participant, count: retryNode.attrs.count },
+			};
 
 			await relayMessage(key.remoteJid!, msg, msgRelayOpts);
 		}
