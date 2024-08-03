@@ -94,6 +94,8 @@ export const parseAndInjectE2ESessions = async (node: BinaryNode, repository: Si
 		assertNodeErrorFree(node);
 	}
 
+	if (nodes.length === 0) return [];
+
 	const jids: string[] = new Array(nodes.length);
 
 	await asyncAll(
