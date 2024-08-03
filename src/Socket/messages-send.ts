@@ -346,6 +346,8 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 
 			return parseAndInjectE2ESessions(result, signalRepository);
 		} catch (e: any) {
+			logger.error(e, 'Error on assertSessions');
+
 			// console.error('Error on assertSessions');
 			// console.error(e.name, e.message, e.code);
 			// console.error(e);
@@ -517,8 +519,6 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 			}
 
 			if (!participant) {
-				// console.log('devices', devices);
-
 				const senderKeyJids: string[] = [];
 
 				for (const jid of devices) {
@@ -529,14 +529,11 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 					senderKeyMap[jid] = true;
 				}
 
-				const needSessionJids = await trackTime(
-					'assertSessions',
-					assertSessions(senderKeyJids, false),
-				);
+				await trackTime('assertSessions', assertSessions(senderKeyJids, false));
 
 				const finish = startTimeTracker('createParticipantNodes');
 
-				const result = await createParticipantNodes(needSessionJids, senderKeyMsg, extraAttrs);
+				const result = await createParticipantNodes(senderKeyJids, senderKeyMsg, extraAttrs);
 
 				finish();
 
