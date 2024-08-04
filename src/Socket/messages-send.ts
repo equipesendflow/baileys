@@ -550,7 +550,7 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 				devices.push(jid);
 				devices.push(jidEncode(myUser, 's.whatsapp.net'));
 
-				devices = await getUSyncDevices(devices, !!useUserDevicesCache, true);
+				devices = await getUSyncDevices(devices, !!useUserDevicesCache, false);
 			}
 
 			const meJids: string[] = [];
