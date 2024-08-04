@@ -89,7 +89,7 @@ export const makeSocket = ({
 
 	const { creds } = authState;
 	// add transaction capability
-	const keys = addTransactionCapabilitySimple(authState.keys, logger, transactionOpts);
+	const keys = authState.keys;
 	const signalRepository = makeSignalRepository({ creds, keys });
 
 	let lastDateRecv: Date;
@@ -315,15 +315,13 @@ export const makeSocket = ({
 
 	/** generates and uploads a set of pre-keys to the server */
 	const uploadPreKeys = async (count = INITIAL_PREKEY_COUNT) => {
-		await keys.transaction(async () => {
-			logger.debug({ count }, 'uploading pre-keys');
-			const { update, node } = await getNextPreKeysNode({ creds, keys }, count);
+		logger.debug({ count }, 'uploading pre-keys');
+		const { update, node } = await getNextPreKeysNode({ creds, keys }, count);
 
-			await query(node);
-			ev.emit('creds.update', update);
+		await query(node);
+		ev.emit('creds.update', update);
 
-			logger.debug({ count }, 'uploaded pre-keys');
-		});
+		logger.debug({ count }, 'uploaded pre-keys');
 	};
 
 	const uploadPreKeysToServerIfRequired = async () => {

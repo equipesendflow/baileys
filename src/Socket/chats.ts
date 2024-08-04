@@ -341,132 +341,130 @@ export const makeChatsSocket = (config: SocketConfig) => {
 			const initialVersionMap: { [T in WAPatchName]?: number } = {};
 			const globalMutationMap: ChatMutationMap = {};
 
-			await authState.keys.transaction(async () => {
-				const collectionsToHandle = new Set<string>(collections);
-				// in case something goes wrong -- ensure we don't enter a loop that cannot be exited from
-				const attemptsMap: { [T in WAPatchName]?: number } = {};
-				// keep executing till all collections are done
-				// sometimes a single patch request will not return all the patches (God knows why)
-				// so we fetch till they're all done (this is determined by the "has_more_patches" flag)
-				while (collectionsToHandle.size) {
-					const states = {} as { [T in WAPatchName]: LTHashState };
-					const nodes: BinaryNode[] = [];
+			const collectionsToHandle = new Set<string>(collections);
+			// in case something goes wrong -- ensure we don't enter a loop that cannot be exited from
+			const attemptsMap: { [T in WAPatchName]?: number } = {};
+			// keep executing till all collections are done
+			// sometimes a single patch request will not return all the patches (God knows why)
+			// so we fetch till they're all done (this is determined by the "has_more_patches" flag)
+			while (collectionsToHandle.size) {
+				const states = {} as { [T in WAPatchName]: LTHashState };
+				const nodes: BinaryNode[] = [];
 
-					for (const name of collectionsToHandle) {
-						const result = await authState.keys.get('app-state-sync-version', [name]);
-						let state = result[name];
+				for (const name of collectionsToHandle) {
+					const result = await authState.keys.get('app-state-sync-version', [name]);
+					let state = result[name];
 
-						if (state) {
-							if (typeof initialVersionMap[name] === 'undefined') {
-								initialVersionMap[name] = state.version;
-							}
-						} else {
-							state = newLTHashState();
+					if (state) {
+						if (typeof initialVersionMap[name] === 'undefined') {
+							initialVersionMap[name] = state.version;
 						}
-
-						states[name] = state;
-
-						logger.debug(`resyncing ${name} from v${state.version}`);
-
-						nodes.push({
-							tag: 'collection',
-							attrs: {
-								name,
-								version: state.version.toString(),
-								// return snapshot if being synced from scratch
-								return_snapshot: (!state.version).toString(),
-							},
-						});
+					} else {
+						state = newLTHashState();
 					}
 
-					const result = await query({
-						tag: 'iq',
+					states[name] = state;
+
+					logger.debug(`resyncing ${name} from v${state.version}`);
+
+					nodes.push({
+						tag: 'collection',
 						attrs: {
-							to: S_WHATSAPP_NET,
-							xmlns: 'w:sync:app:state',
-							type: 'set',
+							name,
+							version: state.version.toString(),
+							// return snapshot if being synced from scratch
+							return_snapshot: (!state.version).toString(),
 						},
-						content: [
-							{
-								tag: 'sync',
-								attrs: {},
-								content: nodes,
-							},
-						],
 					});
+				}
 
-					// extract from binary node
-					const decoded = await extractSyncdPatches(result, config?.options);
-					for (const key in decoded) {
-						const name = key as WAPatchName;
-						const { patches, hasMorePatches, snapshot } = decoded[name];
-						try {
-							if (snapshot) {
-								const { state: newState, mutationMap } = await decodeSyncdSnapshot(
-									name,
-									snapshot,
-									getAppStateSyncKey,
-									initialVersionMap[name],
-									appStateMacVerification.snapshot,
-								);
-								states[name] = newState;
-								Object.assign(globalMutationMap, mutationMap);
+				const result = await query({
+					tag: 'iq',
+					attrs: {
+						to: S_WHATSAPP_NET,
+						xmlns: 'w:sync:app:state',
+						type: 'set',
+					},
+					content: [
+						{
+							tag: 'sync',
+							attrs: {},
+							content: nodes,
+						},
+					],
+				});
 
-								// logger.info(`restored state of ${name} from snapshot to v${newState.version} with mutations`)
+				// extract from binary node
+				const decoded = await extractSyncdPatches(result, config?.options);
+				for (const key in decoded) {
+					const name = key as WAPatchName;
+					const { patches, hasMorePatches, snapshot } = decoded[name];
+					try {
+						if (snapshot) {
+							const { state: newState, mutationMap } = await decodeSyncdSnapshot(
+								name,
+								snapshot,
+								getAppStateSyncKey,
+								initialVersionMap[name],
+								appStateMacVerification.snapshot,
+							);
+							states[name] = newState;
+							Object.assign(globalMutationMap, mutationMap);
 
-								await authState.keys.set({ 'app-state-sync-version': { [name]: newState } });
-							}
+							// logger.info(`restored state of ${name} from snapshot to v${newState.version} with mutations`)
 
-							// only process if there are syncd patches
-							if (patches.length) {
-								const { state: newState, mutationMap } = await decodePatches(
-									name,
-									patches,
-									states[name],
-									getAppStateSyncKey,
-									config.options,
-									initialVersionMap[name],
-									logger,
-									appStateMacVerification.patch,
-								);
+							await authState.keys.set({ 'app-state-sync-version': { [name]: newState } });
+						}
 
-								await authState.keys.set({ 'app-state-sync-version': { [name]: newState } });
+						// only process if there are syncd patches
+						if (patches.length) {
+							const { state: newState, mutationMap } = await decodePatches(
+								name,
+								patches,
+								states[name],
+								getAppStateSyncKey,
+								config.options,
+								initialVersionMap[name],
+								logger,
+								appStateMacVerification.patch,
+							);
 
-								// logger.info(`synced ${name} to v${newState.version}`)
-								initialVersionMap[name] = newState.version;
+							await authState.keys.set({ 'app-state-sync-version': { [name]: newState } });
 
-								Object.assign(globalMutationMap, mutationMap);
-							}
+							// logger.info(`synced ${name} to v${newState.version}`)
+							initialVersionMap[name] = newState.version;
 
-							if (hasMorePatches) {
-								// logger.info(`${name} has more patches...`)
-							} else {
-								// collection is done with sync
-								collectionsToHandle.delete(name);
-							}
-						} catch (error) {
-							// if retry attempts overshoot
-							// or key not found
-							const isIrrecoverableError =
-								attemptsMap[name]! >= MAX_SYNC_ATTEMPTS ||
-								error.output?.statusCode === 404 ||
-								error.name === 'TypeError';
-							// logger.info(
-							// 	{ name, error: error.stack },
-							// 	`failed to sync state from version${isIrrecoverableError ? '' : ', removing and trying from scratch'}`
-							// )
-							await authState.keys.set({ 'app-state-sync-version': { [name]: null } });
-							// increment number of retries
-							attemptsMap[name] = (attemptsMap[name] || 0) + 1;
+							Object.assign(globalMutationMap, mutationMap);
+						}
 
-							if (isIrrecoverableError) {
-								// stop retrying
-								collectionsToHandle.delete(name);
-							}
+						if (hasMorePatches) {
+							// logger.info(`${name} has more patches...`)
+						} else {
+							// collection is done with sync
+							collectionsToHandle.delete(name);
+						}
+					} catch (error) {
+						// if retry attempts overshoot
+						// or key not found
+						const isIrrecoverableError =
+							attemptsMap[name]! >= MAX_SYNC_ATTEMPTS ||
+							error.output?.statusCode === 404 ||
+							error.name === 'TypeError';
+						// logger.info(
+						// 	{ name, error: error.stack },
+						// 	`failed to sync state from version${isIrrecoverableError ? '' : ', removing and trying from scratch'}`
+						// )
+						await authState.keys.set({ 'app-state-sync-version': { [name]: null } });
+						// increment number of retries
+						attemptsMap[name] = (attemptsMap[name] || 0) + 1;
+
+						if (isIrrecoverableError) {
+							// stop retrying
+							collectionsToHandle.delete(name);
 						}
 					}
 				}
-			});
+			}
 
 			const { onMutation } = newAppStateChunkHandler(isInitialSync);
 			for (const key in globalMutationMap) {
@@ -606,59 +604,50 @@ export const makeChatsSocket = (config: SocketConfig) => {
 		let encodeResult: { patch: proto.ISyncdPatch; state: LTHashState };
 
 		await processingMutex.mutex(async () => {
-			await authState.keys.transaction(async () => {
-				logger.debug({ patch: patchCreate }, 'applying app patch');
+			logger.debug({ patch: patchCreate }, 'applying app patch');
 
-				await resyncAppState([name], false);
+			await resyncAppState([name], false);
 
-				const { [name]: currentSyncVersion } = await authState.keys.get('app-state-sync-version', [
-					name,
-				]);
-				initial = currentSyncVersion || newLTHashState();
+			const { [name]: currentSyncVersion } = await authState.keys.get('app-state-sync-version', [name]);
+			initial = currentSyncVersion || newLTHashState();
 
-				encodeResult = await encodeSyncdPatch(
-					patchCreate,
-					myAppStateKeyId,
-					initial,
-					getAppStateSyncKey,
-				);
-				const { patch, state } = encodeResult;
+			encodeResult = await encodeSyncdPatch(patchCreate, myAppStateKeyId, initial, getAppStateSyncKey);
+			const { patch, state } = encodeResult;
 
-				const node: BinaryNode = {
-					tag: 'iq',
-					attrs: {
-						to: S_WHATSAPP_NET,
-						type: 'set',
-						xmlns: 'w:sync:app:state',
-					},
-					content: [
-						{
-							tag: 'sync',
-							attrs: {},
-							content: [
-								{
-									tag: 'collection',
-									attrs: {
-										name,
-										version: (state.version - 1).toString(),
-										return_snapshot: 'false',
-									},
-									content: [
-										{
-											tag: 'patch',
-											attrs: {},
-											content: proto.SyncdPatch.encode(patch).finish(),
-										},
-									],
+			const node: BinaryNode = {
+				tag: 'iq',
+				attrs: {
+					to: S_WHATSAPP_NET,
+					type: 'set',
+					xmlns: 'w:sync:app:state',
+				},
+				content: [
+					{
+						tag: 'sync',
+						attrs: {},
+						content: [
+							{
+								tag: 'collection',
+								attrs: {
+									name,
+									version: (state.version - 1).toString(),
+									return_snapshot: 'false',
 								},
-							],
-						},
-					],
-				};
-				await query(node);
+								content: [
+									{
+										tag: 'patch',
+										attrs: {},
+										content: proto.SyncdPatch.encode(patch).finish(),
+									},
+								],
+							},
+						],
+					},
+				],
+			};
+			await query(node);
 
-				await authState.keys.set({ 'app-state-sync-version': { [name]: state } });
-			});
+			await authState.keys.set({ 'app-state-sync-version': { [name]: state } });
 		});
 
 		if (config.emitOwnEvents) {

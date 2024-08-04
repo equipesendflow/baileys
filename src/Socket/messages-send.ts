@@ -185,7 +185,7 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 
 		const users: BinaryNode[] = [];
 
-		for (let jid of jids) {
+		for (const jid of jids) {
 			const devices = userDevicesCache.get<string[]>(jid);
 
 			if (devices && devices.length > 0) {
@@ -299,11 +299,9 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 
 			await asyncAll(
 				jids.map(async jid => {
-					const signalId = jidToSignalProtocolAddress(jid);
+					const session = await authState.keys.getOne('session', jidToSignalProtocolAddress(jid));
 
-					const sessions = await authState.keys.get('session', [signalId]);
-
-					if (sessions[signalId]) return;
+					if (session) return;
 
 					jidsRequiringFetch.push(jid);
 				}),
@@ -338,7 +336,7 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 				],
 			});
 
-			return parseAndInjectE2ESessions(result, signalRepository);
+			await parseAndInjectE2ESessions(result, signalRepository);
 		} catch (e: any) {
 			logger.error(e, 'Error on assertSessions');
 
@@ -349,9 +347,9 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 	});
 
 	const getSenderKeyMap = trackTimeCb('getSenderKeyMap', async (jid: string) => {
-		const result = await authState.keys.get('sender-key-memory', [jid]);
+		const result = await authState.keys.getOne('sender-key-memory', jid);
 
-		return result[jid] || {};
+		return result || {};
 	});
 
 	const getDevices = trackTimeCb('getDevices', async (jid, options: MessageRelayOptions) => {
@@ -382,7 +380,7 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 				senderKeyMap[jid] = true;
 			}
 
-			authState.keys.set({ 'sender-key-memory': { [jid]: senderKeyMap } });
+			authState.keys.setOne('sender-key-memory', jid, senderKeyMap);
 
 			return senderKeyJids;
 		} else {
@@ -398,6 +396,8 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 		options: MessageRelayOptions,
 	) {
 		const mediatype = getMediaType(message);
+		let shouldAddDeviceIdentity = false;
+		const participants: BinaryNode[] = [];
 
 		await asyncAll(
 			devices.map(async jid => {
@@ -419,25 +419,30 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 					encNode.attrs.count = options.participant.count;
 					stanza.content.push(encNode);
 				} else {
-					if (!stanza.content[0]) {
-						stanza.content.push({
-							tag: 'participants',
-							attrs: {},
-							content: [] as BinaryNode[],
-						});
-					}
-					stanza.content[0]!.content.push(makeToNode(jid, encNode));
+					participants.push(makeToNode(jid, encNode));
 				}
 
-				if (stanza.content.length === 1 && result.type === 'pkmsg') {
-					stanza.content.push({
-						tag: 'device-identity',
-						attrs: {},
-						content: encodeSignedDeviceIdentity(authState.creds.account!, true),
-					});
+				if (result.type === 'pkmsg') {
+					shouldAddDeviceIdentity = true;
 				}
 			}),
 		);
+
+		if (!options?.participant && participants.length) {
+			stanza.content.push({
+				tag: 'participants',
+				attrs: {},
+				content: participants,
+			});
+		}
+
+		if (shouldAddDeviceIdentity) {
+			stanza.content.push({
+				tag: 'device-identity',
+				attrs: {},
+				content: encodeSignedDeviceIdentity(authState.creds.account!, true),
+			});
+		}
 	}
 
 	async function createStanzaContent(
@@ -488,6 +493,38 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 				options,
 			);
 		}
+	}
+
+	function makeStanza(jid: string, options: MessageRelayOptions) {
+		const stanza: BinaryNode & { content: [(BinaryNode & { content: BinaryNode[] })?, BinaryNode?] } = {
+			tag: 'message',
+			attrs: {
+				id: options?.messageId || generateMessageID(),
+				type: 'text',
+				to: jid,
+				...options?.additionalAttributes,
+			},
+			content: [],
+		};
+
+		if (jid.endsWith('g.us')) {
+			stanza.attrs.addressing_mode = 'pn';
+
+			if (options?.participant) {
+				stanza.attrs.participant = options.participant.jid;
+			}
+		} else {
+			if (options?.participant) {
+				stanza.attrs.device_fanout = 'false';
+				stanza.attrs.to = options.participant.jid;
+
+				if (options.participant.jid.startsWith(meUser)) {
+					stanza.attrs.recipient = jid;
+				}
+			}
+		}
+
+		return stanza;
 	}
 
 	async function createStanza(
@@ -706,37 +743,6 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 			return fullMsg;
 		},
 	};
-
-	function makeStanza(jid: string, options: MessageRelayOptions) {
-		const stanza: BinaryNode & { content: [(BinaryNode & { content: BinaryNode[] })?, BinaryNode?] } = {
-			tag: 'message',
-			attrs: {
-				id: options?.messageId || generateMessageID(),
-				type: 'text',
-				to: jid,
-				...options?.additionalAttributes,
-			},
-			content: [],
-		};
-
-		if (jid.endsWith('g.us')) {
-			stanza.attrs.addressing_mode = 'pn';
-
-			if (options?.participant) {
-				stanza.attrs.participant = options.participant.jid;
-			}
-		} else {
-			if (options?.participant) {
-				stanza.attrs.device_fanout = 'false';
-				stanza.attrs.to = options.participant.jid;
-
-				if (options.participant.jid.startsWith(meUser)) {
-					stanza.attrs.recipient = jid;
-				}
-			}
-		}
-		return stanza;
-	}
 };
 
 const getMediaType = (message: proto.IMessage) => {

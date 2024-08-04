@@ -7,7 +7,7 @@ import {
 	Chat,
 	GroupMetadata,
 	ParticipantAction,
-	SignalKeyStoreWithTransaction,
+	SignalKeyStore,
 	SocketConfig,
 	WAMessageStubType,
 } from '../Types';
@@ -20,7 +20,7 @@ import { downloadAndProcessHistorySyncNotification } from './history';
 type ProcessMessageContext = {
 	shouldProcessHistoryMsg: boolean;
 	creds: AuthenticationCreds;
-	keyStore: SignalKeyStoreWithTransaction;
+	keyStore: SignalKeyStore;
 	ev: BaileysEventEmitter;
 	getMessage: SocketConfig['getMessage'];
 	logger?: Logger;
@@ -209,10 +209,8 @@ function toBinary(txt: string) {
 	return Buffer.from(txt);
 }
 
-const processMessage = async (
-	message: proto.IWebMessageInfo,
-	{ shouldProcessHistoryMsg, ev, creds, keyStore, logger, options, getMessage }: ProcessMessageContext,
-) => {
+const processMessage = async (message: proto.IWebMessageInfo, context: ProcessMessageContext) => {
+	const { shouldProcessHistoryMsg, ev, creds, keyStore, logger, options, getMessage } = context;
 	const meId = creds.me!.id;
 	const { accountSettings } = creds;
 
@@ -272,19 +270,18 @@ const processMessage = async (
 				const keys = protocolMsg.appStateSyncKeyShare!.keys;
 				if (keys?.length) {
 					let newAppStateSyncKeyId = '';
-					await keyStore.transaction(async () => {
-						const newKeys: string[] = [];
-						for (const { keyData, keyId } of keys) {
-							const strKeyId = Buffer.from(keyId!.keyId!).toString('base64');
-							newKeys.push(strKeyId);
 
-							await keyStore.set({ 'app-state-sync-key': { [strKeyId]: keyData! } });
+					const newKeys: string[] = [];
+					for (const { keyData, keyId } of keys) {
+						const strKeyId = Buffer.from(keyId!.keyId!).toString('base64');
+						newKeys.push(strKeyId);
 
-							newAppStateSyncKeyId = strKeyId;
-						}
+						await keyStore.set({ 'app-state-sync-key': { [strKeyId]: keyData! } });
 
-						logger?.debug({ newAppStateSyncKeyId, newKeys }, 'injecting new app state sync keys');
-					});
+						newAppStateSyncKeyId = strKeyId;
+					}
+
+					logger?.debug({ newAppStateSyncKeyId, newKeys }, 'injecting new app state sync keys');
 
 					ev.emit('creds.update', { myAppStateKeyId: newAppStateSyncKeyId });
 				} else {

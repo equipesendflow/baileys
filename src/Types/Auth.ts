@@ -86,8 +86,10 @@ export type SignalDataSet = { [T in keyof SignalDataTypeMap]?: { [id: string]: S
 type Awaitable<T> = T | Promise<T>
 
 export type SignalKeyStore = {
+    getOne<T extends keyof SignalDataTypeMap>(type: T, id: string): Awaitable<SignalDataTypeMap[T]|null >
     get<T extends keyof SignalDataTypeMap>(type: T, ids: string[]): Awaitable<{ [id: string]: SignalDataTypeMap[T] }>
     set(data: SignalDataSet): Awaitable<void>
+    setOne<T extends keyof SignalDataTypeMap, V extends SignalDataTypeMap[T]>(type: T, id: string, value: V): Awaitable<void>
     /** clear all the data in the store */
     clear?(): Awaitable<void>
 }
