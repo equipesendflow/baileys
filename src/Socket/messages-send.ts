@@ -402,9 +402,9 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 		await asyncAll(
 			devices.map(async jid => {
 				const result = await signalRepository.encryptMessage(jid, getBytes(jid)).catch(e => {
-					if (e.message !== 'No sessions' && e.message !== 'No open session') return;
-
 					userDevicesCache.del(jidNormalizedUser(jid));
+
+					if (e.message !== 'No sessions' && e.message !== 'No open session') return;
 				});
 
 				if (!result) return;
