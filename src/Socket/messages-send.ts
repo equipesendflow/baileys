@@ -75,9 +75,6 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 			useClones: false,
 		});
 
-	const meId = authState.creds.me!.id;
-	const { user: meUser, device: meDevice } = jidDecode(meId)!;
-
 	let mediaConn: Promise<MediaConnInfo>;
 	const refreshMediaConn = async (forceGet = false) => {
 		const media = await mediaConn;
@@ -215,6 +212,9 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 		if (users.length === 0) {
 			return deviceResults;
 		}
+
+		const meId = authState.creds.me!.id;
+		const { user: meUser, device: meDevice } = jidDecode(meId)!;
 
 		const iq: BinaryNode = {
 			tag: 'iq',
@@ -363,6 +363,9 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 		}
 
 		if (!jid.endsWith('g.us')) {
+			const meId = authState.creds.me!.id;
+			const { user: meUser, device: meDevice } = jidDecode(meId)!;
+
 			return getUSyncDevices([jid, jidEncode(meUser, 's.whatsapp.net')]);
 		}
 
@@ -475,6 +478,9 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 		stanza: BinaryNode & { content: [(BinaryNode & { content: BinaryNode[] })?, BinaryNode?] },
 		devices: string[],
 	) {
+		const meId = authState.creds.me!.id;
+		const { user: meUser, device: meDevice } = jidDecode(meId)!;
+
 		if (jid.endsWith('g.us')) {
 			const result = await signalRepository.encryptGroupMessage(jid, meId, encodeWAMessage(message));
 
@@ -515,6 +521,9 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 	}
 
 	function makeStanza(jid: string, options: MessageRelayOptions) {
+		const meId = authState.creds.me!.id;
+		const { user: meUser, device: meDevice } = jidDecode(meId)!;
+
 		const stanza: BinaryNode & { content: [(BinaryNode & { content: BinaryNode[] })?, BinaryNode?] } = {
 			tag: 'message',
 			attrs: {
