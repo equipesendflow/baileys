@@ -112,7 +112,7 @@ export const parseAndInjectE2ESessions = async (node: BinaryNode, repository: Si
 
 			await repository.injectE2ESession(userNode.attrs.jid, session);
 
-			if (++i % 10 === 0) {
+			if (++i % 100 === 0) {
 				await asyncDelay(1);
 			}
 		}

@@ -42,7 +42,7 @@ import {
 	S_WHATSAPP_NET,
 } from '../WABinary';
 import { makeGroupsSocket } from './groups';
-import { asyncAll } from '../Utils/parallel';
+import { asyncAll, asyncDelay } from '../Utils/parallel';
 import { startTimeTracker, trackTime, trackTimeCb } from '../Utils/time-tracker';
 import { assert } from '../Utils/assert';
 
@@ -417,15 +417,10 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 		let shouldAddDeviceIdentity = false;
 		const participants: BinaryNode[] = [];
 
-		await asyncAll(
-			devices.map(async jid => {
-				const result = await signalRepository.encryptMessage(jid, getBytes(jid)).catch(e => {
-					userDevicesCache.del(jidNormalizedUser(jid));
-
-					if (e.message !== 'No sessions' && e.message !== 'No open session') return;
-				});
-
-				if (!result) return;
+		let i = 0;
+		for (const jid of devices) {
+			try {
+				const result = await signalRepository.encryptMessage(jid, getBytes(jid));
 
 				const encNode = makeEncNode(result.type, result.ciphertext);
 
@@ -443,8 +438,18 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 				if (result.type === 'pkmsg') {
 					shouldAddDeviceIdentity = true;
 				}
-			}),
-		);
+			} catch (e: any) {
+				userDevicesCache.del(jidNormalizedUser(jid));
+
+				if (e.message === 'No sessions' || e.message === 'No open session') return;
+
+				logger.error(e, 'failed to encrypt message');
+			}
+
+			if (++i % 100 === 0) {
+				await asyncDelay(1);
+			}
+		}
 
 		if (!options?.participant && participants.length) {
 			stanza.content.push({
