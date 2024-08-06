@@ -12,7 +12,6 @@ import {
 } from '../Defaults';
 import { DisconnectReason, SocketConfig } from '../Types';
 import {
-	addTransactionCapabilitySimple,
 	bindWaitForConnectionUpdate,
 	configureSuccessfulPairing,
 	Curve,
@@ -62,9 +61,14 @@ export const makeSocket = ({
 }: SocketConfig) => {
 	let url = typeof waWebSocketUrl === 'string' ? new URL(waWebSocketUrl) : waWebSocketUrl;
 
-	// if (url.protocol === 'wss' && authState?.creds?.routingInfo) {
-	// 	url.searchParams.append('ED', authState.creds.routingInfo.toString('base64url'));
-	// }
+	const routingInfo =
+		authState.creds.routingInfo && Buffer.isBuffer(authState.creds.routingInfo)
+			? authState.creds.routingInfo
+			: undefined;
+
+	if (url.protocol === 'wss' && routingInfo) {
+		url.searchParams.append('ED', routingInfo.toString('base64url'));
+	}
 
 	const ws = new WebSocket(url, undefined, {
 		origin: DEFAULT_ORIGIN,
@@ -84,7 +88,7 @@ export const makeSocket = ({
 		NOISE_HEADER: NOISE_WA_HEADER,
 		mobile: false,
 		logger,
-		// routingInfo: authState?.creds?.routingInfo,
+		routingInfo: routingInfo,
 	});
 
 	const { creds } = authState;
