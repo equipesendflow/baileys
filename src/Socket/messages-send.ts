@@ -29,7 +29,6 @@ import {
 } from '../Utils';
 import { getUrlInfo } from '../Utils/link-preview';
 import {
-	areJidsSameUser,
 	BinaryNode,
 	BinaryNodeAttributes,
 	getBinaryNodeChild,
@@ -43,10 +42,9 @@ import {
 	S_WHATSAPP_NET,
 } from '../WABinary';
 import { makeGroupsSocket } from './groups';
-import ListType = proto.ListMessage.ListType;
-import { chunk } from '../Utils/utils';
 import { asyncAll } from '../Utils/parallel';
-import { startTimeTracker, trackTime } from '../Utils/time-tracker';
+import { startTimeTracker, trackTime, trackTimeCb } from '../Utils/time-tracker';
+import { assert } from '../Utils/assert';
 
 export const makeMessagesSocket = (config: SocketConfig) => {
 	const {
@@ -54,7 +52,6 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 		linkPreviewImageThumbnailWidth,
 		generateHighQualityLinkPreview,
 		options: axiosOptions,
-		patchMessageBeforeSending,
 		cachedGroupMetadata,
 	} = config;
 	const sock = makeGroupsSocket(config);
@@ -68,7 +65,6 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 		fetchPrivacySettings,
 		generateMessageTag,
 		sendNode,
-		groupMetadata,
 		groupToggleEphemeral,
 	} = sock;
 
@@ -78,6 +74,9 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 			stdTTL: DEFAULT_CACHE_TTLS.USER_DEVICES, // 5 minutes
 			useClones: false,
 		});
+
+	const meId = authState.creds.me!.id;
+	const { user: meUser, device: meDevice } = jidDecode(meId)!;
 
 	let mediaConn: Promise<MediaConnInfo>;
 	const refreshMediaConn = async (forceGet = false) => {
@@ -181,37 +180,34 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 	};
 
 	/** Fetch all the devices we've to send a message to */
-	const getUSyncDevices = async (jids: string[], useCache: boolean, ignoreZeroDevices: boolean) => {
+	const getUSyncDevices = async (jids: string[]) => {
 		const deviceResults: string[] = [];
-
 		const users: BinaryNode[] = [];
 
-		for (let jid of jids) {
-			if (useCache) {
-				const devices = userDevicesCache.get<string[]>(jid);
+		for (const jid of jids) {
+			const devices = userDevicesCache.get<string[]>(jid);
 
-				if (devices && devices.length > 0) {
-					deviceResults.push(...devices);
+			if (devices && devices.length > 0) {
+				deviceResults.push(...devices);
 
-					continue;
-				}
-
-				// if (devices?.length) {
-				// 	const phash = participantListHashV2(devices || []);
-				// 	users.push({
-				// 		tag: 'user',
-				// 		attrs: { jid },
-				// 		content: [
-				// 			{
-				// 				tag: 'devices',
-				// 				attrs: {
-				// 					device_hash: phash,
-				// 				},
-				// 			},
-				// 		],
-				// 	});
-				// }
+				continue;
 			}
+
+			// if (devices?.length) {
+			// 	const phash = participantListHashV2(devices || []);
+			// 	users.push({
+			// 		tag: 'user',
+			// 		attrs: { jid },
+			// 		content: [
+			// 			{
+			// 				tag: 'devices',
+			// 				attrs: {
+			// 					device_hash: phash,
+			// 				},
+			// 			},
+			// 		],
+			// 	});
+			// }
 
 			users.push({ tag: 'user', attrs: { jid } });
 		}
@@ -256,8 +252,6 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 
 		const result = await query(iq);
 
-		const { user: meUser, device: meDevice } = jidDecode(authState.creds.me!.id)!;
-
 		for (const node of result.content as BinaryNode[]) {
 			const list = getBinaryNodeChild(node, 'list')?.content;
 
@@ -280,7 +274,6 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 
 					// ensure that "key-index" is specified for "non-zero" devices, produces a bad req otherwise
 					if (device !== 0 && !node.attrs['key-index']) continue;
-					if (ignoreZeroDevices && device === 0) continue;
 					if (user === meUser && device === meDevice) continue;
 
 					devices.push(jidEncode(user, 's.whatsapp.net', device));
@@ -303,11 +296,9 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 
 		await asyncAll(
 			jids.map(async jid => {
-				const signalId = jidToSignalProtocolAddress(jid);
+				const session = await authState.keys.getOne('session', jidToSignalProtocolAddress(jid));
 
-				const sessions = await authState.keys.get('session', [signalId]);
-
-				if (sessions[signalId]) return;
+				if (session) return;
 
 				jidsRequiringFetch.push(jid);
 			}),
@@ -316,38 +307,43 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 		return jidsRequiringFetch;
 	};
 
-	const assertSessions = async (jids: string[], force: boolean) => {
+	const assertSessions = async (jids: string[], force = false) => {
 		const jidsRequiringFetch = await getJidsRequiringFetch(jids, force);
 
 		if (!jidsRequiringFetch.length) return [];
 
 		try {
-			const result = await query({
-				tag: 'iq',
-				attrs: {
-					xmlns: 'encrypt',
-					type: 'get',
-					to: S_WHATSAPP_NET,
-				},
-				content: [
-					{
-						tag: 'key',
-						attrs: {},
-						content: jidsRequiringFetch.map(jid => ({
-							tag: 'user',
-							attrs: { jid },
-						})),
+			const result = await trackTime(
+				'assertSessions query',
+				query({
+					tag: 'iq',
+					attrs: {
+						xmlns: 'encrypt',
+						type: 'get',
+						to: S_WHATSAPP_NET,
 					},
-				],
-			});
+					content: [
+						{
+							tag: 'key',
+							attrs: {},
+							content: jidsRequiringFetch.map(jid => ({
+								tag: 'user',
+								attrs: { jid },
+							})),
+						},
+					],
+				}),
+			);
 
-			return parseAndInjectE2ESessions(result, signalRepository);
+			const finish = startTimeTracker('parseAndInjectE2ESessions');
+
+			await parseAndInjectE2ESessions(result, signalRepository);
+
+			finish();
+
+			console.log('injected jids', jidsRequiringFetch.length);
 		} catch (e: any) {
 			logger.error(e, 'Error on assertSessions');
-
-			// console.error('Error on assertSessions');
-			// console.error(e.name, e.message, e.code);
-			// console.error(e);
 
 			if (e.message === 'not-acceptable') return [];
 
@@ -355,328 +351,225 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 		}
 	};
 
-	const createParticipantNodes = async (
-		jids: string[],
+	const getSenderKeyMap = async (jid: string) => {
+		const result = await authState.keys.getOne('sender-key-memory', jid);
+
+		return result || {};
+	};
+
+	const getDevices = async (jid: string, options: MessageRelayOptions) => {
+		if (options?.participant) {
+			return [options.participant.jid];
+		}
+
+		if (!jid.endsWith('g.us')) {
+			return getUSyncDevices([jid, jidEncode(meUser, 's.whatsapp.net')]);
+		}
+
+		const senderKeyMap$ = getSenderKeyMap(jid);
+
+		const groupData = await cachedGroupMetadata(jid);
+
+		assert(groupData, 'group data not found.');
+
+		const participantsList = new Array(groupData.participants.length);
+
+		for (let i = 0; i < groupData.participants.length; i++) {
+			participantsList[i] = groupData.participants[i].id;
+		}
+
+		const devices = await getUSyncDevices(participantsList);
+
+		const senderKeyMap = await senderKeyMap$;
+
+		const senderKeyJids: string[] = [];
+
+		for (const jid of devices) {
+			if (senderKeyMap[jid]) continue;
+
+			senderKeyJids.push(jid);
+		}
+
+		return senderKeyJids;
+	};
+
+	const saveSenderKeyMemory = async (jid: string, devices: string[], options: MessageRelayOptions) => {
+		if (options?.participant) return;
+		if (!jid.endsWith('g.us')) return;
+
+		const senderKeyMap = await getSenderKeyMap(jid);
+
+		for (const jid of devices) {
+			senderKeyMap[jid] = true;
+		}
+
+		await authState.keys.setOne('sender-key-memory', jid, senderKeyMap);
+	};
+
+	async function createParticipantNodes(
+		stanza: BinaryNode & { content: [(BinaryNode & { content: BinaryNode[] })?, BinaryNode?] },
+		devices: string[],
+		getBytes: (jid: string) => Buffer,
 		message: proto.IMessage,
-		extraAttrs?: BinaryNode['attrs'],
-	) => {
-		const data = encodeWAMessage(message);
-
-		let shouldIncludeDeviceIdentity = false;
-
-		const nodes: BinaryNode[] = [];
+		options: MessageRelayOptions,
+	) {
+		const mediatype = getMediaType(message);
+		let shouldAddDeviceIdentity = false;
+		const participants: BinaryNode[] = [];
 
 		await asyncAll(
-			jids.map(async jid => {
-				try {
-					const { type, ciphertext } = await signalRepository.encryptMessage({ jid, data });
+			devices.map(async jid => {
+				const result = await signalRepository.encryptMessage(jid, getBytes(jid)).catch(e => {
+					userDevicesCache.del(jidNormalizedUser(jid));
 
-					if (type === 'pkmsg') {
-						shouldIncludeDeviceIdentity = true;
-					}
+					if (e.message !== 'No sessions' && e.message !== 'No open session') return;
+				});
 
-					const node: BinaryNode = {
-						tag: 'to',
-						attrs: { jid },
-						content: [
-							{
-								tag: 'enc',
-								attrs: {
-									v: '2',
-									type,
-									...(extraAttrs || {}),
-								},
-								content: ciphertext,
-							},
-						],
-					};
+				if (!result) return;
 
-					nodes.push(node);
-				} catch (e: any) {
-					logger.error(e, 'Error on encrypting message');
+				const encNode = makeEncNode(result.type, result.ciphertext);
 
-					if (e.message === 'No sessions') {
-						const jidNormalized = jidNormalizedUser(jid);
-						userDevicesCache.del(jidNormalized);
-						return;
-					}
-					if (e.message === 'No open session') return;
+				if (mediatype) {
+					encNode.attrs.mediatype = mediatype;
+				}
 
-					throw e;
+				if (options?.participant) {
+					encNode.attrs.count = options.participant.count;
+					stanza.content.push(encNode);
+				} else {
+					participants.push(makeToNode(jid, encNode));
+				}
+
+				if (result.type === 'pkmsg') {
+					shouldAddDeviceIdentity = true;
 				}
 			}),
 		);
 
-		return { nodes, shouldIncludeDeviceIdentity };
-	};
-
-	const relayMessage = async (jid: string, message: proto.IMessage, options: MessageRelayOptions) => {
-		let { messageId: msgId, participant, additionalAttributes, useUserDevicesCache } = options;
-
-		const meId = authState.creds.me!.id;
-
-		const { user: myUser } = jidDecode(meId)!;
-
-		let shouldIncludeDeviceIdentity = false;
-
-		const { user, server } = jidDecode(jid)!;
-		const isGroup = server === 'g.us';
-		msgId = msgId || generateMessageID();
-		useUserDevicesCache = useUserDevicesCache !== false;
-
-		const participants: BinaryNode[] = [];
-		const destinationJid = jidEncode(user, isGroup ? 'g.us' : 's.whatsapp.net');
-		const binaryNodeContent: BinaryNode[] = [];
-
-		const mediaType = getMediaType(message);
-		const extraAttrs = mediaType ? { mediatype: mediaType } : undefined;
-
-		if (isGroup) {
-			let devices: string[] = [];
-
-			const [_, senderKeyMap, { ciphertext, senderKeyDistributionMessage }] = await Promise.all([
-				(async () => {
-					if (participant) return;
-					if (!cachedGroupMetadata) return;
-
-					const groupData = await cachedGroupMetadata(jid, !useUserDevicesCache);
-
-					if (!groupData) {
-						throw new Error('group data not found.');
-					}
-
-					const participantsList = groupData.participants.map(p => p.id);
-
-					devices = await trackTime(
-						'getUSyncDevices',
-						getUSyncDevices(participantsList, true, false),
-					);
-				})(),
-				(async () => {
-					if (participant) {
-						return {};
-					}
-					const finish = startTimeTracker('get sender-key-memory');
-
-					const result = await authState.keys.get('sender-key-memory', [jid]);
-
-					finish();
-
-					return result[jid] || {};
-				})(),
-				(async () => {
-					const finish = startTimeTracker('encryptGroupMessage');
-
-					const bytes = encodeWAMessage(message);
-
-					const { ciphertext, senderKeyDistributionMessage } =
-						await signalRepository.encryptGroupMessage({
-							group: destinationJid,
-							data: bytes,
-							meId,
-						});
-
-					finish();
-
-					return { ciphertext, senderKeyDistributionMessage };
-				})(),
-			]);
-
-			const senderKeyMsg: proto.IMessage = {
-				senderKeyDistributionMessage: {
-					axolotlSenderKeyDistributionMessage: senderKeyDistributionMessage,
-					groupId: destinationJid,
-				},
-			};
-
-			if (participant) {
-				devices.push(participant.jid);
-
-				message.senderKeyDistributionMessage = senderKeyMsg.senderKeyDistributionMessage;
-
-				await trackTime('assertSessions', assertSessions(devices, false));
-
-				const finish = startTimeTracker('createParticipantNodes');
-
-				const result = await createParticipantNodes(devices, message, extraAttrs);
-
-				finish();
-
-				shouldIncludeDeviceIdentity ||= result.shouldIncludeDeviceIdentity;
-
-				participants.push(...result.nodes);
-			}
-
-			if (!participant) {
-				const senderKeyJids: string[] = [];
-
-				for (const jid of devices) {
-					if (senderKeyMap[jid]) continue;
-
-					senderKeyJids.push(jid);
-
-					senderKeyMap[jid] = true;
-				}
-
-				await trackTime('assertSessions', assertSessions(senderKeyJids, false));
-
-				const finish = startTimeTracker('createParticipantNodes');
-
-				const result = await createParticipantNodes(senderKeyJids, senderKeyMsg, extraAttrs);
-
-				finish();
-
-				shouldIncludeDeviceIdentity ||= result.shouldIncludeDeviceIdentity;
-
-				participants.push(...result.nodes);
-
-				const enc: BinaryNode = {
-					tag: 'enc',
-					attrs: { v: '2', type: 'skmsg' },
-					content: ciphertext,
-				};
-
-				binaryNodeContent.push(enc);
-
-				authState.keys.set({ 'sender-key-memory': { [jid]: senderKeyMap } });
-			}
-		} else {
-			let devices: string[] = [];
-
-			if (participant) {
-				additionalAttributes = { ...additionalAttributes, device_fanout: 'false' };
-				devices.push(participant.jid);
-			} else {
-				devices.push(jid);
-				devices.push(jidEncode(myUser, 's.whatsapp.net'));
-
-				devices = await getUSyncDevices(devices, !!useUserDevicesCache, false);
-			}
-
-			const meJids: string[] = [];
-			const otherJids: string[] = [];
-
-			for (const jid of devices) {
-				if (jid.startsWith(myUser)) {
-					meJids.push(jid);
-				} else {
-					otherJids.push(jid);
-				}
-			}
-
-			await assertSessions(devices, false);
-
-			const meMsg: proto.IMessage = {
-				deviceSentMessage: {
-					destinationJid,
-					message,
-				},
-			};
-
-			const [
-				{ nodes: meNodes, shouldIncludeDeviceIdentity: s1 },
-				{ nodes: otherNodes, shouldIncludeDeviceIdentity: s2 },
-			] = await Promise.all([
-				createParticipantNodes(meJids, meMsg, extraAttrs),
-				createParticipantNodes(otherJids, message, extraAttrs),
-			]);
-
-			participants.push(...meNodes);
-			participants.push(...otherNodes);
-
-			shouldIncludeDeviceIdentity = shouldIncludeDeviceIdentity || s1 || s2;
-		}
-
-		if (participants.length === 1 && participant) {
-			const enc = getBinaryNodeChild(participants[0], 'enc')!;
-			enc.attrs.count = `${participant.count}`;
-			binaryNodeContent.push(enc);
-		} else if (participants.length) {
-			binaryNodeContent.push({
+		if (!options?.participant && participants.length) {
+			stanza.content.push({
 				tag: 'participants',
 				attrs: {},
 				content: participants,
 			});
 		}
 
-		const stanza: BinaryNode = {
-			tag: 'message',
-			attrs: {
-				id: msgId!,
-				type: 'text',
-				...(additionalAttributes || {}),
-			},
-			content: binaryNodeContent,
-		};
-
-		if (isGroup) {
-			stanza.attrs.addressing_mode = 'pn';
-		}
-
-		// if (phash) {
-		// 	stanza.attrs.phash = phash;
-		// }
-
-		// if the participant to send to is explicitly specified (generally retry recp)
-		// ensure the message is only sent to that person
-		// if a retry receipt is sent to everyone -- it'll fail decryption for everyone else who received the msg
-		if (participant) {
-			if (isJidGroup(destinationJid)) {
-				stanza.attrs.to = destinationJid;
-				stanza.attrs.participant = participant.jid;
-			} else if (areJidsSameUser(participant.jid, meId)) {
-				stanza.attrs.to = participant.jid;
-				stanza.attrs.recipient = destinationJid;
-			} else {
-				stanza.attrs.to = participant.jid;
-			}
-		} else {
-			stanza.attrs.to = destinationJid;
-		}
-
-		if (shouldIncludeDeviceIdentity) {
-			(stanza.content as BinaryNode[]).push({
+		if (shouldAddDeviceIdentity) {
+			stanza.content.push({
 				tag: 'device-identity',
 				attrs: {},
 				content: encodeSignedDeviceIdentity(authState.creds.account!, true),
 			});
 		}
+	}
+
+	async function createStanzaContent(
+		jid: string,
+		message: proto.IMessage,
+		options: MessageRelayOptions,
+		stanza: BinaryNode & { content: [(BinaryNode & { content: BinaryNode[] })?, BinaryNode?] },
+		devices: string[],
+	) {
+		if (jid.endsWith('g.us')) {
+			const result = await signalRepository.encryptGroupMessage(jid, meId, encodeWAMessage(message));
+
+			function getSKMessage() {
+				const senderKeyDistributionMessage = {
+					axolotlSenderKeyDistributionMessage: result.senderKeyDistributionMessage,
+					groupId: jid,
+				};
+				if (options?.participant) {
+					message.senderKeyDistributionMessage = senderKeyDistributionMessage;
+					return message;
+				} else {
+					stanza.content.push(makeEncNode('skmsg', result.ciphertext));
+					return { senderKeyDistributionMessage };
+				}
+			}
+
+			const data = encodeWAMessage(getSKMessage());
+
+			return createParticipantNodes(stanza, devices, _jid => data, message, options);
+		} else {
+			const meMsgBytes = encodeWAMessage({
+				deviceSentMessage: {
+					destinationJid: jid,
+					message,
+				},
+			});
+			const messageBytes = encodeWAMessage(message);
+
+			return createParticipantNodes(
+				stanza,
+				devices,
+				jid => (jid.startsWith(meUser) ? meMsgBytes : messageBytes),
+				message,
+				options,
+			);
+		}
+	}
+
+	function makeStanza(jid: string, options: MessageRelayOptions) {
+		const stanza: BinaryNode & { content: [(BinaryNode & { content: BinaryNode[] })?, BinaryNode?] } = {
+			tag: 'message',
+			attrs: {
+				id: options?.messageId || generateMessageID(),
+				type: 'text',
+				to: jid,
+				...options?.additionalAttributes,
+			},
+			content: [],
+		};
+
+		if (jid.endsWith('g.us')) {
+			stanza.attrs.addressing_mode = 'pn';
+
+			if (options?.participant) {
+				stanza.attrs.participant = options.participant.jid;
+			}
+		} else {
+			if (options?.participant) {
+				stanza.attrs.device_fanout = 'false';
+				stanza.attrs.to = options.participant.jid;
+
+				if (options.participant.jid.startsWith(meUser)) {
+					stanza.attrs.recipient = jid;
+				}
+			}
+		}
+
+		return stanza;
+	}
+
+	async function createStanza(
+		jid: string,
+		message: proto.IMessage,
+		options: MessageRelayOptions,
+		devices: string[],
+	) {
+		const stanza = makeStanza(jid, options);
+
+		await createStanzaContent(jid, message, options, stanza, devices);
+
+		return stanza;
+	}
+
+	const relayMessage = async (jid: string, message: proto.IMessage, options: MessageRelayOptions) => {
+		const devices = await trackTime('getDevices', getDevices(jid, options));
+
+		await trackTime('assertSessions', assertSessions(devices));
+
+		const stanza = await trackTime('createStanza', createStanza(jid, message, options, devices));
+
+		if (stanza.content.length === 0) {
+			return null;
+		}
 
 		await sendNode(stanza);
 
-		return msgId;
-	};
+		await saveSenderKeyMemory(jid, devices, options);
 
-	const getMediaType = (message: proto.IMessage) => {
-		if (message.imageMessage) {
-			return 'image';
-		} else if (message.videoMessage) {
-			return message.videoMessage.gifPlayback ? 'gif' : 'video';
-		} else if (message.audioMessage) {
-			return message.audioMessage.ptt ? 'ptt' : 'audio';
-		} else if (message.contactMessage) {
-			return 'vcard';
-		} else if (message.documentMessage) {
-			return 'document';
-		} else if (message.contactsArrayMessage) {
-			return 'contact_array';
-		} else if (message.liveLocationMessage) {
-			return 'livelocation';
-		} else if (message.stickerMessage) {
-			return 'sticker';
-		} else if (message.listMessage) {
-			return 'list';
-		} else if (message.listResponseMessage) {
-			return 'list_response';
-		} else if (message.buttonsResponseMessage) {
-			return 'buttons_response';
-		} else if (message.orderMessage) {
-			return 'order';
-		} else if (message.productMessage) {
-			return 'product';
-		} else if (message.interactiveResponseMessage) {
-			return 'native_flow_response';
-		}
+		return stanza.attrs.id;
 	};
 
 	const getPrivacyTokens = async (jids: string[]) => {
@@ -871,3 +764,54 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 		},
 	};
 };
+
+const getMediaType = (message: proto.IMessage) => {
+	if (message.imageMessage) {
+		return 'image';
+	} else if (message.videoMessage) {
+		return message.videoMessage.gifPlayback ? 'gif' : 'video';
+	} else if (message.audioMessage) {
+		return message.audioMessage.ptt ? 'ptt' : 'audio';
+	} else if (message.contactMessage) {
+		return 'vcard';
+	} else if (message.documentMessage) {
+		return 'document';
+	} else if (message.contactsArrayMessage) {
+		return 'contact_array';
+	} else if (message.liveLocationMessage) {
+		return 'livelocation';
+	} else if (message.stickerMessage) {
+		return 'sticker';
+	} else if (message.listMessage) {
+		return 'list';
+	} else if (message.listResponseMessage) {
+		return 'list_response';
+	} else if (message.buttonsResponseMessage) {
+		return 'buttons_response';
+	} else if (message.orderMessage) {
+		return 'order';
+	} else if (message.productMessage) {
+		return 'product';
+	} else if (message.interactiveResponseMessage) {
+		return 'native_flow_response';
+	}
+};
+
+function makeToNode(jid: string, node: BinaryNode): BinaryNode {
+	return {
+		tag: 'to',
+		attrs: { jid },
+		content: [node],
+	};
+}
+
+function makeEncNode(type: string, content: Uint8Array): BinaryNode {
+	return {
+		tag: 'enc',
+		attrs: {
+			v: '2',
+			type,
+		},
+		content,
+	};
+}

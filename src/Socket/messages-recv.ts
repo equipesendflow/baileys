@@ -158,65 +158,64 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 		const { account, signedPreKey, signedIdentityKey: identityKey } = authState.creds;
 
 		const deviceIdentity = encodeSignedDeviceIdentity(account!, true);
-		await authState.keys.transaction(async () => {
-			const receipt: BinaryNode = {
-				tag: 'receipt',
-				attrs: {
-					id: msgId,
-					type: 'retry',
-					to: node.attrs.from,
+
+		const receipt: BinaryNode = {
+			tag: 'receipt',
+			attrs: {
+				id: msgId,
+				type: 'retry',
+				to: node.attrs.from,
+			},
+			content: [
+				{
+					tag: 'retry',
+					attrs: {
+						count: retryCount.toString(),
+						id: node.attrs.id,
+						t: node.attrs.t,
+					},
 				},
-				content: [
-					{
-						tag: 'retry',
-						attrs: {
-							count: retryCount.toString(),
-							id: node.attrs.id,
-							t: node.attrs.t,
-						},
-					},
-					{
-						tag: 'registration',
-						attrs: {},
-						content: encodeBigEndian(authState.creds.registrationId),
-					},
-				],
-			};
-
-			if (node.attrs.recipient) {
-				receipt.attrs.recipient = node.attrs.recipient;
-			}
-
-			if (node.attrs.participant) {
-				receipt.attrs.participant = node.attrs.participant;
-			}
-
-			if (retryCount > 1 || forceIncludeKeys) {
-				const { update, preKeys } = await getNextPreKeys(authState, 1);
-
-				const [keyId] = Object.keys(preKeys);
-				const key = preKeys[+keyId];
-
-				const content = receipt.content! as BinaryNode[];
-				content.push({
-					tag: 'keys',
+				{
+					tag: 'registration',
 					attrs: {},
-					content: [
-						{ tag: 'type', attrs: {}, content: Buffer.from(KEY_BUNDLE_TYPE) },
-						{ tag: 'identity', attrs: {}, content: identityKey.public },
-						xmppPreKey(key, +keyId),
-						xmppSignedPreKey(signedPreKey),
-						{ tag: 'device-identity', attrs: {}, content: deviceIdentity },
-					],
-				});
+					content: encodeBigEndian(authState.creds.registrationId),
+				},
+			],
+		};
 
-				ev.emit('creds.update', update);
-			}
+		if (node.attrs.recipient) {
+			receipt.attrs.recipient = node.attrs.recipient;
+		}
 
-			await sendNode(receipt);
+		if (node.attrs.participant) {
+			receipt.attrs.participant = node.attrs.participant;
+		}
 
-			logger.debug({ msgAttrs: node.attrs, retryCount }, 'sent retry receipt');
-		});
+		if (retryCount > 1 || forceIncludeKeys) {
+			const { update, preKeys } = await getNextPreKeys(authState, 1);
+
+			const [keyId] = Object.keys(preKeys);
+			const key = preKeys[+keyId];
+
+			const content = receipt.content! as BinaryNode[];
+			content.push({
+				tag: 'keys',
+				attrs: {},
+				content: [
+					{ tag: 'type', attrs: {}, content: Buffer.from(KEY_BUNDLE_TYPE) },
+					{ tag: 'identity', attrs: {}, content: identityKey.public },
+					xmppPreKey(key, +keyId),
+					xmppSignedPreKey(signedPreKey),
+					{ tag: 'device-identity', attrs: {}, content: deviceIdentity },
+				],
+			});
+
+			ev.emit('creds.update', update);
+		}
+
+		await sendNode(receipt);
+
+		logger.debug({ msgAttrs: node.attrs, retryCount }, 'sent retry receipt');
 	};
 
 	const handleEncryptNotification = async (node: BinaryNode) => {
@@ -507,44 +506,24 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 		const msgs = await Promise.all(ids.map(id => getMessage({ ...key, id })));
 		const remoteJid = key.remoteJid!;
 		const participant = key.participant || remoteJid;
-		// if it's the primary jid sending the request
-		// just re-send the message to everyone
-		// prevents the first message decryption failure
-		// const sendToAll = !jidDecode(participant)?.device;
-		const sendToAll = false;
+
 		await assertSessions([participant], true);
 
 		if (isJidGroup(remoteJid)) {
 			await authState.keys.set({ 'sender-key-memory': { [remoteJid]: null } });
 		}
 
-		logger.debug({ participant, sendToAll }, 'forced new session for retry recp');
-
 		for (let i = 0; i < msgs.length; i++) {
 			const msg = msgs[i];
 
-			if (!msg) {
-				logger.debug(
-					{ jid: key.remoteJid, id: ids[i] },
-					'recv retry request, but message not available',
-				);
-				continue;
-			}
+			if (!msg) continue;
 
 			updateSendMessageAgainCount(ids[i], participant);
 
-			const msgRelayOpts: MessageRelayOptions = { messageId: ids[i] };
-
-			key.id = ids[i];
-
-			if (sendToAll) {
-				msgRelayOpts.useUserDevicesCache = false;
-			} else {
-				msgRelayOpts.participant = {
-					jid: participant,
-					count: +retryNode.attrs.count,
-				};
-			}
+			const msgRelayOpts: MessageRelayOptions = {
+				messageId: ids[i],
+				participant: { jid: participant, count: retryNode.attrs.count },
+			};
 
 			await relayMessage(key.remoteJid!, msg, msgRelayOpts);
 		}

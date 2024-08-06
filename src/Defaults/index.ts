@@ -1,6 +1,6 @@
 import { createHash } from 'crypto';
 import { proto } from '../../WAProto';
-import { makeLibSignalRepository } from '../Signal/libsignal';
+import { LibSignalRepository } from '../Signal/libsignal';
 import type { AuthenticationState, MediaType, SocketConfig, WAVersion } from '../Types';
 import { Browsers } from '../Utils';
 import logger from '../Utils/logger';
@@ -81,7 +81,8 @@ export const DEFAULT_CONNECTION_CONFIG: SocketConfig = {
 		snapshot: false,
 	},
 	getMessage: async () => undefined,
-	makeSignalRepository: makeLibSignalRepository,
+	makeSignalRepository: auth => new LibSignalRepository(auth),
+	cachedGroupMetadata: async () => null,
 };
 
 export const MEDIA_PATH_MAP: { [T in MediaType]?: string } = {
