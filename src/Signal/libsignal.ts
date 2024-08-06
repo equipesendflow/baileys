@@ -1,91 +1,100 @@
 import * as libsignal from 'libsignal';
+import { proto } from '../../WAProto/index';
 import {
 	GroupCipher,
 	GroupSessionBuilder,
 	SenderKeyDistributionMessage,
-	SenderKeyName,
 	SenderKeyRecord,
 } from '../../WASignalGroup';
 import { SignalAuthState } from '../Types';
-import { SignalRepository } from '../Types/Signal';
+import { E2ESession, SignalRepository } from '../Types/Signal';
 import { generateSignalPubKey } from '../Utils';
+import { TrackTime } from '../Utils/time-tracker';
 
-export function makeLibSignalRepository(auth: SignalAuthState): SignalRepository {
-	const storage = signalStorage(auth);
-	return {
-		decryptGroupMessage({ group, authorJid, msg }) {
-			const senderName = jidToSignalSenderKeyName(group, authorJid);
-			const cipher = new GroupCipher(storage, senderName);
+export class LibSignalRepository implements SignalRepository {
+	storage: SignalStorage;
 
-			return cipher.decrypt(msg);
-		},
-		async processSenderKeyDistributionMessage({ item, authorJid }) {
-			const builder = new GroupSessionBuilder(storage);
-			const senderName = jidToSignalSenderKeyName(item.groupId!, authorJid);
+	constructor(public auth: SignalAuthState) {
+		this.storage = new SignalStorage(auth);
+	}
 
-			const senderMsg = new SenderKeyDistributionMessage(
-				null,
-				null,
-				null,
-				null,
-				item.axolotlSenderKeyDistributionMessage,
-			);
-			const { [senderName]: senderKey } = await auth.keys.get('sender-key', [senderName]);
-			if (!senderKey) {
-				await storage.storeSenderKey(senderName, new SenderKeyRecord());
-			}
+	decryptGroupMessage(group: string, authorJid: string, msg: Uint8Array) {
+		const senderName = jidToSignalSenderKeyName(group, authorJid);
+		const cipher = new GroupCipher(this.storage, senderName);
 
-			await builder.process(senderName, senderMsg);
-		},
-		async decryptMessage({ jid, type, ciphertext }) {
-			const addr = jidToSignalProtocolAddress(jid);
-			const session = new libsignal.SessionCipher(storage, addr);
-			let result: Buffer;
-			switch (type) {
-				case 'pkmsg':
-					result = await session.decryptPreKeyWhisperMessage(ciphertext);
-					break;
-				case 'msg':
-					result = await session.decryptWhisperMessage(ciphertext);
-					break;
-			}
+		return cipher.decrypt(msg);
+	}
 
-			return result;
-		},
-		async encryptMessage(jid, data) {
-			const addr = jidToSignalProtocolAddress(jid);
-			const cipher = new libsignal.SessionCipher(storage, addr);
+	async processSenderKeyDistributionMessage(item: proto.ISenderKeyDistributionMessage, authorJid: string) {
+		const builder = new GroupSessionBuilder(this.storage);
+		const senderName = jidToSignalSenderKeyName(item.groupId!, authorJid);
 
-			const { type: sigType, body } = await cipher.encrypt(data);
-			const type = sigType === 3 ? 'pkmsg' : 'msg';
-			return { type, ciphertext: Buffer.from(body, 'binary') };
-		},
-		async encryptGroupMessage({ group, meId, data }) {
-			const senderName = jidToSignalSenderKeyName(group, meId);
-			const builder = new GroupSessionBuilder(storage);
+		const senderMsg = new SenderKeyDistributionMessage(
+			null,
+			null,
+			null,
+			null,
+			item.axolotlSenderKeyDistributionMessage,
+		);
 
-			const { [senderName]: senderKey } = await auth.keys.get('sender-key', [senderName]);
-			if (!senderKey) {
-				await storage.storeSenderKey(senderName, new SenderKeyRecord());
-			}
+		const senderKey = await this.auth.keys.getOne('sender-key', senderName);
 
-			const senderKeyDistributionMessage = await builder.create(senderName);
-			const session = new GroupCipher(storage, senderName);
-			const ciphertext = await session.encrypt(data);
+		if (!senderKey) {
+			await this.storage.storeSenderKey(senderName, new SenderKeyRecord());
+		}
 
-			return {
-				ciphertext,
-				senderKeyDistributionMessage: senderKeyDistributionMessage.serialize(),
-			};
-		},
-		async injectE2ESession({ jid, session }) {
-			const cipher = new libsignal.SessionBuilder(storage, jidToSignalProtocolAddress(jid));
-			await cipher.initOutgoing(session);
-		},
-		jidToSignalProtocolAddress(jid) {
-			return jidToSignalProtocolAddress(jid).toString();
-		},
-	};
+		await builder.process(senderName, senderMsg);
+	}
+
+	async decryptMessage(jid: string, type: 'pkmsg' | 'msg', ciphertext: Uint8Array) {
+		const addr = jidToSignalProtocolAddress(jid);
+		const session = new libsignal.SessionCipher(this.storage, addr);
+
+		switch (type) {
+			case 'pkmsg':
+				return session.decryptPreKeyWhisperMessage(ciphertext);
+			case 'msg':
+				return session.decryptWhisperMessage(ciphertext);
+		}
+	}
+
+	async encryptMessage(jid: string, data: Uint8Array) {
+		const addr = jidToSignalProtocolAddress(jid);
+		const cipher = new libsignal.SessionCipher(this.storage, addr);
+
+		const result = await cipher.encrypt(data);
+
+		return {
+			type: (result.type === 3 ? 'pkmsg' : 'msg') as 'pkmsg' | 'msg',
+			ciphertext: Buffer.from(result.body, 'binary'),
+		};
+	}
+
+	async encryptGroupMessage(group: string, meId: string, data: Uint8Array) {
+		const senderName = jidToSignalSenderKeyName(group, meId);
+		const builder = new GroupSessionBuilder(this.storage);
+
+		const senderKey = await this.auth.keys.getOne('sender-key', senderName);
+
+		if (!senderKey) {
+			await this.storage.storeSenderKey(senderName, new SenderKeyRecord());
+		}
+
+		const senderKeyDistributionMessage = await builder.create(senderName);
+		const session = new GroupCipher(this.storage, senderName);
+		const ciphertext = await session.encrypt(data);
+
+		return {
+			ciphertext,
+			senderKeyDistributionMessage: senderKeyDistributionMessage.serialize(),
+		};
+	}
+
+	injectE2ESession(jid: string, session: E2ESession) {
+		const cipher = new libsignal.SessionBuilder(this.storage, jidToSignalAddress(jid));
+
+		cipher.initOutgoing(session);
+	}
 }
 
 const jidToSignalAddress = (jid: string) => jid.split('@')[0];
@@ -94,58 +103,75 @@ const jidToSignalProtocolAddress = (jid: string) => {
 	return new libsignal.ProtocolAddress(jidToSignalAddress(jid), 0);
 };
 
+export function jidToSignalProtocolAddressString(jid: string) {
+	return `${jid.split('@')[0]}.0`;
+}
+
 const jidToSignalSenderKeyName = (group: string, user: string): string => {
-	return new SenderKeyName(group, jidToSignalProtocolAddress(user)).toString();
+	return `${group}::${jidToSignalAddress(user)}::0`;
 };
 
-function signalStorage({ creds, keys }: SignalAuthState) {
-	return {
-		loadSession: async (id: string) => {
-			const { [id]: sess } = await keys.get('session', [id]);
-			if (sess) {
-				return libsignal.SessionRecord.deserialize(sess);
-			}
-		},
-		storeSession: async (id, session) => {
-			await keys.set({ session: { [id]: session.serialize() } });
-		},
-		isTrustedIdentity: () => {
-			return true;
-		},
-		loadPreKey: async (id: number | string) => {
-			const keyId = id.toString();
-			const { [keyId]: key } = await keys.get('pre-key', [keyId]);
-			if (key) {
-				return {
-					privKey: Buffer.from(key.private),
-					pubKey: Buffer.from(key.public),
-				};
-			}
-		},
-		removePreKey: (id: number) => keys.set({ 'pre-key': { [id]: null } }),
-		loadSignedPreKey: () => {
-			const key = creds.signedPreKey;
-			return {
-				privKey: Buffer.from(key.keyPair.private),
-				pubKey: Buffer.from(key.keyPair.public),
-			};
-		},
-		loadSenderKey: async (keyId: string) => {
-			const { [keyId]: key } = await keys.get('sender-key', [keyId]);
-			if (key) {
-				return new SenderKeyRecord(key);
-			}
-		},
-		storeSenderKey: async (keyId, key) => {
-			await keys.set({ 'sender-key': { [keyId]: key.serialize() } });
-		},
-		getOurRegistrationId: () => creds.registrationId,
-		getOurIdentity: () => {
-			const { signedIdentityKey } = creds;
-			return {
-				privKey: Buffer.from(signedIdentityKey.private),
-				pubKey: generateSignalPubKey(signedIdentityKey.public),
-			};
-		},
-	};
+export class SignalStorage {
+	constructor(public auth: SignalAuthState) {}
+
+	async loadSession(id: string) {
+		const session = await this.auth.keys.getOne('session', id);
+
+		if (!session) return;
+
+		return libsignal.SessionRecord.deserialize(session);
+	}
+
+	async storeSession(id: string, session: libsignal.SessionRecord) {
+		await this.auth.keys.setOne('session', id, session.serialize());
+	}
+
+	isTrustedIdentity() {
+		return true;
+	}
+
+	async loadPreKey(id: number | string) {
+		const key = await this.auth.keys.getOne('pre-key', id.toString());
+
+		if (!key) return;
+
+		return {
+			privKey: Buffer.from(key.private),
+			pubKey: Buffer.from(key.public),
+		};
+	}
+
+	removePreKey(id: number) {
+		return this.auth.keys.setOne('pre-key', id.toString(), null);
+	}
+
+	loadSignedPreKey() {
+		return {
+			privKey: Buffer.from(this.auth.creds.signedPreKey.keyPair.private),
+			pubKey: Buffer.from(this.auth.creds.signedPreKey.keyPair.public),
+		};
+	}
+
+	async loadSenderKey(keyId: string) {
+		const key = await this.auth.keys.getOne('sender-key', keyId);
+
+		if (!key) return;
+
+		return new SenderKeyRecord(key);
+	}
+
+	async storeSenderKey(keyId: string, key: SenderKeyRecord) {
+		await this.auth.keys.setOne('sender-key', keyId, key.serialize());
+	}
+
+	getOurRegistrationId() {
+		return this.auth.creds.registrationId;
+	}
+
+	getOurIdentity() {
+		return {
+			privKey: Buffer.from(this.auth.creds.signedIdentityKey.private),
+			pubKey: generateSignalPubKey(this.auth.creds.signedIdentityKey.public),
+		};
+	}
 }

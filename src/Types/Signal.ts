@@ -1,33 +1,5 @@
 import { proto } from '../../WAProto';
 
-type DecryptGroupSignalOpts = {
-	group: string;
-	authorJid: string;
-	msg: Uint8Array;
-};
-
-type ProcessSenderKeyDistributionMessageOpts = {
-	item: proto.ISenderKeyDistributionMessage;
-	authorJid: string;
-};
-
-type DecryptSignalProtoOpts = {
-	jid: string;
-	type: 'pkmsg' | 'msg';
-	ciphertext: Uint8Array;
-};
-
-type EncryptMessageOpts = {
-	jid: string;
-	data: Uint8Array;
-};
-
-type EncryptGroupMessageOpts = {
-	group: string;
-	data: Uint8Array;
-	meId: string;
-};
-
 type PreKey = {
 	keyId: number;
 	publicKey: Uint8Array;
@@ -37,22 +9,20 @@ type SignedPreKey = PreKey & {
 	signature: Uint8Array;
 };
 
-type E2ESession = {
+export type E2ESession = {
 	registrationId: number;
-	identityKey: Uint8Array;
+	identityKey: Uint8Array | Buffer;
 	signedPreKey: SignedPreKey;
 	preKey: PreKey;
 };
 
-type E2ESessionOpts = {
-	jid: string;
-	session: E2ESession;
-};
-
 export type SignalRepository = {
-	decryptGroupMessage(opts: DecryptGroupSignalOpts): Promise<Uint8Array>;
-	processSenderKeyDistributionMessage(opts: ProcessSenderKeyDistributionMessageOpts): Promise<void>;
-	decryptMessage(opts: DecryptSignalProtoOpts): Promise<Uint8Array>;
+	decryptGroupMessage(group: string, authorJid: string, msg: Uint8Array): Promise<Uint8Array>;
+	processSenderKeyDistributionMessage(
+		item: proto.ISenderKeyDistributionMessage,
+		authorJid: string,
+	): Promise<void>;
+	decryptMessage(jid: string, type: 'pkmsg' | 'msg', ciphertext: Uint8Array): Promise<Uint8Array>;
 	encryptMessage(
 		jid: string,
 		data: Uint8Array,
@@ -60,10 +30,13 @@ export type SignalRepository = {
 		type: 'pkmsg' | 'msg';
 		ciphertext: Uint8Array;
 	}>;
-	encryptGroupMessage(opts: EncryptGroupMessageOpts): Promise<{
+	encryptGroupMessage(
+		group: string,
+		meId: string,
+		data: Uint8Array,
+	): Promise<{
 		senderKeyDistributionMessage: Uint8Array;
 		ciphertext: Uint8Array;
 	}>;
-	injectE2ESession(opts: E2ESessionOpts): Promise<void>;
-	jidToSignalProtocolAddress(jid: string): string;
+	injectE2ESession(jid: string, session: E2ESession): void;
 };

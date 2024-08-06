@@ -1,5 +1,6 @@
+import { Boom } from '@hapi/boom';
 import { KEY_BUNDLE_TYPE } from '../Defaults';
-import { SignalRepository } from '../Types';
+import { E2ESession, SignalRepository } from '../Types';
 import {
 	AuthenticationCreds,
 	AuthenticationState,
@@ -9,19 +10,18 @@ import {
 	SignedKeyPair,
 } from '../Types/Auth';
 import {
-	assertNodeErrorFree,
 	BinaryNode,
+	getBinaryNodeBuffer,
 	getBinaryNodeChild,
 	getBinaryNodeChildBuffer,
-	getBinaryNodeChildren,
 	getBinaryNodeChildUInt,
-	jidDecode,
+	getBinaryNodeUInt,
 	JidWithDevice,
 	S_WHATSAPP_NET,
 } from '../WABinary';
 import { Curve, generateSignalPubKey } from './crypto';
 import { encodeBigEndian } from './generics';
-import { asyncAll } from './parallel';
+import { asyncAll, asyncDelay } from './parallel';
 import { chunk } from './utils';
 
 export const createSignalIdentity = (wid: string, accountSignatureKey: Uint8Array): SignalIdentity => {
@@ -88,39 +88,36 @@ const extractKey = (key: BinaryNode) => {
 };
 
 export const parseAndInjectE2ESessions = async (node: BinaryNode, repository: SignalRepository) => {
-	const nodes = getBinaryNodeChildren(getBinaryNodeChild(node, 'list'), 'user');
+	for (const item of node.content as BinaryNode[]) {
+		if (item.tag !== 'list') continue;
 
-	for (const node of nodes) {
-		assertNodeErrorFree(node);
+		let i = 0;
+		for (const userNode of item.content as BinaryNode[]) {
+			if (userNode.tag !== 'user') continue;
+
+			const session = {} as E2ESession;
+
+			for (const child of userNode.content as BinaryNode[]) {
+				if (child.tag === 'error') {
+					throw new Boom(child.attrs.text || 'Unknown error', { data: +child.attrs.code });
+				} else if (child.tag === 'registration') {
+					session.registrationId = getBinaryNodeUInt(child, 4)!;
+				} else if (child.tag === 'identity') {
+					session.identityKey = generateSignalPubKey(getBinaryNodeBuffer(child)!);
+				} else if (child.tag === 'skey') {
+					session.signedPreKey = extractKey(child)!;
+				} else if (child.tag === 'key') {
+					session.preKey = extractKey(child)!;
+				}
+			}
+
+			repository.injectE2ESession(userNode.attrs.jid, session);
+
+			if (++i % 10 === 0) {
+				await asyncDelay(1);
+			}
+		}
 	}
-
-	if (nodes.length === 0) return [];
-
-	const jids: string[] = new Array(nodes.length);
-
-	await asyncAll(
-		nodes.map(async node => {
-			const signedKey = getBinaryNodeChild(node, 'skey')!;
-			const key = getBinaryNodeChild(node, 'key')!;
-			const identity = getBinaryNodeChildBuffer(node, 'identity')!;
-			const jid = node.attrs.jid;
-			const registrationId = getBinaryNodeChildUInt(node, 'registration', 4);
-
-			jids.push(jid);
-
-			await repository.injectE2ESession({
-				jid,
-				session: {
-					registrationId: registrationId!,
-					identityKey: generateSignalPubKey(identity),
-					signedPreKey: extractKey(signedKey)!,
-					preKey: extractKey(key)!,
-				},
-			});
-		}),
-	);
-
-	return jids;
 };
 
 export const extractDeviceJids = (result: BinaryNode, excludeZeroDevices: boolean) => {

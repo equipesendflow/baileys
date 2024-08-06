@@ -28,6 +28,12 @@ export const getBinaryNodeChildBuffer = (node: BinaryNode | undefined, childTag:
 	return child;
 };
 
+export const getBinaryNodeBuffer = (node: BinaryNode | undefined) => {
+	if (!Buffer.isBuffer(node?.content) && !(node?.content instanceof Uint8Array)) return;
+
+	return node?.content;
+};
+
 export const getBinaryNodeContentString = (node: BinaryNode) => {
 	const content = node.content;
 	if (Buffer.isBuffer(content) || content instanceof Uint8Array) {
@@ -50,6 +56,14 @@ export const getBinaryNodeChildString = (node: BinaryNode | undefined, childTag:
 
 export const getBinaryNodeChildUInt = (node: BinaryNode, childTag: string, length: number) => {
 	const buff = getBinaryNodeChildBuffer(node, childTag);
+
+	if (!buff) return;
+
+	return bufferToUInt(buff, length);
+};
+
+export const getBinaryNodeUInt = (node: BinaryNode, length: number) => {
+	const buff = getBinaryNodeBuffer(node);
 
 	if (!buff) return;
 
@@ -87,7 +101,7 @@ export const getBinaryNodeMessages = (node: BinaryNode) => {
 	return msgs;
 };
 
-function bufferToUInt(e: Uint8Array | Buffer, t: number) {
+export function bufferToUInt(e: Uint8Array | Buffer, t: number) {
 	let a = 0;
 	for (let i = 0; i < t; i++) {
 		a = 256 * a + e[i];

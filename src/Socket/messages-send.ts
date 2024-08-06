@@ -43,7 +43,7 @@ import {
 } from '../WABinary';
 import { makeGroupsSocket } from './groups';
 import { asyncAll } from '../Utils/parallel';
-import { trackTimeCb } from '../Utils/time-tracker';
+import { startTimeTracker, trackTime, trackTimeCb } from '../Utils/time-tracker';
 import { assert } from '../Utils/assert';
 
 export const makeMessagesSocket = (config: SocketConfig) => {
@@ -180,9 +180,8 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 	};
 
 	/** Fetch all the devices we've to send a message to */
-	const getUSyncDevices = trackTimeCb('getUSyncDevices', async (jids: string[]) => {
+	const getUSyncDevices = async (jids: string[]) => {
 		const deviceResults: string[] = [];
-
 		const users: BinaryNode[] = [];
 
 		for (const jid of jids) {
@@ -288,55 +287,61 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 		}
 
 		return deviceResults;
-	});
+	};
 
-	const getJidsRequiringFetch = trackTimeCb(
-		'getJidsRequiringFetch',
-		async (jids: string[], force: boolean) => {
-			if (force) return jids;
+	const getJidsRequiringFetch = async (jids: string[], force: boolean) => {
+		if (force) return jids;
 
-			const jidsRequiringFetch: string[] = [];
+		const jidsRequiringFetch: string[] = [];
 
-			await asyncAll(
-				jids.map(async jid => {
-					const session = await authState.keys.getOne('session', jidToSignalProtocolAddress(jid));
+		await asyncAll(
+			jids.map(async jid => {
+				const session = await authState.keys.getOne('session', jidToSignalProtocolAddress(jid));
 
-					if (session) return;
+				if (session) return;
 
-					jidsRequiringFetch.push(jid);
-				}),
-			);
+				jidsRequiringFetch.push(jid);
+			}),
+		);
 
-			return jidsRequiringFetch;
-		},
-	);
+		return jidsRequiringFetch;
+	};
 
-	const assertSessions = trackTimeCb('assertSessions', async (jids: string[], force = false) => {
+	const assertSessions = async (jids: string[], force = false) => {
 		const jidsRequiringFetch = await getJidsRequiringFetch(jids, force);
 
 		if (!jidsRequiringFetch.length) return [];
 
 		try {
-			const result = await query({
-				tag: 'iq',
-				attrs: {
-					xmlns: 'encrypt',
-					type: 'get',
-					to: S_WHATSAPP_NET,
-				},
-				content: [
-					{
-						tag: 'key',
-						attrs: {},
-						content: jidsRequiringFetch.map(jid => ({
-							tag: 'user',
-							attrs: { jid },
-						})),
+			const result = await trackTime(
+				'assertSessions query',
+				query({
+					tag: 'iq',
+					attrs: {
+						xmlns: 'encrypt',
+						type: 'get',
+						to: S_WHATSAPP_NET,
 					},
-				],
-			});
+					content: [
+						{
+							tag: 'key',
+							attrs: {},
+							content: jidsRequiringFetch.map(jid => ({
+								tag: 'user',
+								attrs: { jid },
+							})),
+						},
+					],
+				}),
+			);
 
-			await parseAndInjectE2ESessions(result, signalRepository);
+			const finish = startTimeTracker('parseAndInjectE2ESessions');
+
+			parseAndInjectE2ESessions(result, signalRepository);
+
+			finish();
+
+			console.log('injected jids', jidsRequiringFetch.length);
 		} catch (e: any) {
 			logger.error(e, 'Error on assertSessions');
 
@@ -344,49 +349,62 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 
 			throw e;
 		}
-	});
+	};
 
-	const getSenderKeyMap = trackTimeCb('getSenderKeyMap', async (jid: string) => {
+	const getSenderKeyMap = async (jid: string) => {
 		const result = await authState.keys.getOne('sender-key-memory', jid);
 
 		return result || {};
-	});
+	};
 
-	const getDevices = trackTimeCb('getDevices', async (jid, options: MessageRelayOptions) => {
+	const getDevices = async (jid: string, options: MessageRelayOptions) => {
 		if (options?.participant) {
 			return [options.participant.jid];
 		}
 
-		if (jid.endsWith('g.us')) {
-			const senderKeyMap$ = getSenderKeyMap(jid);
-
-			const groupData = await cachedGroupMetadata(jid);
-
-			assert(groupData, 'group data not found.');
-
-			const participantsList = groupData.participants.map(p => p.id);
-
-			const devices = await getUSyncDevices(participantsList);
-
-			const senderKeyMap = await senderKeyMap$;
-
-			const senderKeyJids: string[] = [];
-
-			for (const jid of devices) {
-				if (senderKeyMap[jid]) continue;
-
-				senderKeyJids.push(jid);
-
-				senderKeyMap[jid] = true;
-			}
-
-			authState.keys.setOne('sender-key-memory', jid, senderKeyMap);
-
-			return senderKeyJids;
-		} else {
+		if (!jid.endsWith('g.us')) {
 			return getUSyncDevices([jid, jidEncode(meUser, 's.whatsapp.net')]);
 		}
-	});
+
+		const senderKeyMap$ = getSenderKeyMap(jid);
+
+		const groupData = await cachedGroupMetadata(jid);
+
+		assert(groupData, 'group data not found.');
+
+		const participantsList = new Array(groupData.participants.length);
+
+		for (let i = 0; i < groupData.participants.length; i++) {
+			participantsList[i] = groupData.participants[i].id;
+		}
+
+		const devices = await getUSyncDevices(participantsList);
+
+		const senderKeyMap = await senderKeyMap$;
+
+		const senderKeyJids: string[] = [];
+
+		for (const jid of devices) {
+			if (senderKeyMap[jid]) continue;
+
+			senderKeyJids.push(jid);
+		}
+
+		return senderKeyJids;
+	};
+
+	const saveSenderKeyMemory = async (jid: string, devices: string[], options: MessageRelayOptions) => {
+		if (options?.participant) return;
+		if (!jid.endsWith('g.us')) return;
+
+		const senderKeyMap = await getSenderKeyMap(jid);
+
+		for (const jid of devices) {
+			senderKeyMap[jid] = true;
+		}
+
+		await authState.keys.setOne('sender-key-memory', jid, senderKeyMap);
+	};
 
 	async function createParticipantNodes(
 		stanza: BinaryNode & { content: [(BinaryNode & { content: BinaryNode[] })?, BinaryNode?] },
@@ -453,11 +471,7 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 		devices: string[],
 	) {
 		if (jid.endsWith('g.us')) {
-			const result = await signalRepository.encryptGroupMessage({
-				group: jid,
-				data: encodeWAMessage(message),
-				meId,
-			});
+			const result = await signalRepository.encryptGroupMessage(jid, meId, encodeWAMessage(message));
 
 			function getSKMessage() {
 				const senderKeyDistributionMessage = {
@@ -541,13 +555,19 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 	}
 
 	const relayMessage = async (jid: string, message: proto.IMessage, options: MessageRelayOptions) => {
-		const devices = await getDevices(jid, options);
+		const devices = await trackTime('getDevices', getDevices(jid, options));
 
-		await assertSessions(devices);
+		await trackTime('assertSessions', assertSessions(devices));
 
-		const stanza = await createStanza(jid, message, options, devices);
+		const stanza = await trackTime('createStanza', createStanza(jid, message, options, devices));
+
+		if (stanza.content.length === 0) {
+			return null;
+		}
 
 		await sendNode(stanza);
+
+		await saveSenderKeyMemory(jid, devices, options);
 
 		return stanza.attrs.id;
 	};
