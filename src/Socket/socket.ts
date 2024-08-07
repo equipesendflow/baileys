@@ -32,6 +32,8 @@ import {
 	encodeBinaryNode,
 	getBinaryNodeChild,
 	getBinaryNodeChildren,
+	jidDecode,
+	jidEncode,
 	S_WHATSAPP_NET,
 } from '../WABinary';
 import { removeBuffer } from '../Utils/utils';
@@ -91,10 +93,16 @@ export const makeSocket = ({
 		routingInfo: routingInfo,
 	});
 
-	const { creds } = authState;
-	// add transaction capability
+	const creds = authState.creds;
 	const keys = authState.keys;
 	const signalRepository = makeSignalRepository({ creds, keys });
+
+	if (creds.me?.id && (!creds.me.user || !creds.me.jidNormalized)) {
+		const { user, device } = jidDecode(creds.me.id)!;
+		creds.me.user = user;
+		creds.me.jidNormalized = jidEncode(user, 's.whatsapp.net');
+		creds.me.device = device;
+	}
 
 	let lastDateRecv: Date;
 	let epoch = 1;

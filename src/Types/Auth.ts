@@ -46,7 +46,13 @@ export type AuthenticationCreds = SignalCreds & {
 	readonly pairingEphemeralKeyPair: KeyPair;
 	advSecretKey: string;
 
-	me?: Contact;
+	me?: {
+		id: string;
+		jidNormalized: string;
+		name?: string;
+		user: string;
+		device?: number;
+	};
 	account?: proto.IADVSignedDeviceIdentity;
 	signalIdentities?: SignalIdentity[];
 	myAppStateKeyId?: string;

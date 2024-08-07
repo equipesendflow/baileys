@@ -326,7 +326,7 @@ export const makeChatsSocket = (config: SocketConfig) => {
 				processSyncAction(
 					mutation,
 					ev,
-					authState.creds.me!,
+					authState.creds,
 					isInitialSync ? { accountSettings: authState.creds.accountSettings } : undefined,
 					logger,
 				);

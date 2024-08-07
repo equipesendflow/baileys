@@ -90,7 +90,6 @@ export const parseAndInjectE2ESessions = async (node: BinaryNode, repository: Si
 	for (const item of node.content as BinaryNode[]) {
 		if (item.tag !== 'list') continue;
 
-		let i = 0;
 		for (const userNode of item.content as BinaryNode[]) {
 			if (userNode.tag !== 'user') continue;
 
@@ -98,6 +97,8 @@ export const parseAndInjectE2ESessions = async (node: BinaryNode, repository: Si
 
 			for (const child of userNode.content as BinaryNode[]) {
 				if (child.tag === 'error') {
+					if (child.attrs.text === 'not-acceptable') return;
+
 					throw new Boom(child.attrs.text || 'Unknown error', { data: +child.attrs.code });
 				} else if (child.tag === 'registration') {
 					session.registrationId = getBinaryNodeUInt(child, 4)!;
@@ -112,9 +113,7 @@ export const parseAndInjectE2ESessions = async (node: BinaryNode, repository: Si
 
 			await repository.injectE2ESession(userNode.attrs.jid, session);
 
-			if (++i % 100 === 0) {
-				await asyncDelay(1);
-			}
+			await asyncDelay(0);
 		}
 	}
 };

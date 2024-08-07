@@ -3,12 +3,12 @@ import { AxiosRequestConfig } from 'axios';
 import type { Logger } from 'pino';
 import { proto } from '../../WAProto';
 import {
+	AuthenticationCreds,
 	BaileysEventEmitter,
 	Chat,
 	ChatModification,
 	ChatMutation,
 	ChatUpdate,
-	Contact,
 	InitialAppStateSyncOptions,
 	LastMessageList,
 	LTHashState,
@@ -681,7 +681,7 @@ export const chatModificationToAppPatch = (mod: ChatModification, jid: string) =
 export const processSyncAction = (
 	syncAction: ChatMutation,
 	ev: BaileysEventEmitter,
-	me: Contact,
+	creds: AuthenticationCreds,
 	initialSyncOpts?: InitialAppStateSyncOptions,
 	logger?: Logger,
 ) => {
@@ -760,8 +760,8 @@ export const processSyncAction = (
 		ev.emit('contacts.upsert', [{ id, name: action.contactAction!.fullName! }]);
 	} else if (action?.pushNameSetting) {
 		const name = action?.pushNameSetting?.name;
-		if (name && me?.name !== name) {
-			ev.emit('creds.update', { me: { ...me, name } });
+		if (name && creds.me && creds.me?.name !== name) {
+			ev.emit('creds.update', { me: { ...creds.me, name } });
 		}
 	} else if (action?.pinAction) {
 		ev.emit('chats.update', [
