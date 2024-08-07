@@ -634,7 +634,6 @@ export const makeSocket = ({
 	ws.on('CB:ib,,edge_routing', (node: BinaryNode) => {
 		const edgeRoutingNode = getBinaryNodeChild(node, 'edge_routing');
 		const routingInfo = getBinaryNodeChild(edgeRoutingNode, 'routing_info');
-		console.log('routingInfo', authState?.creds?.routingInfo);
 
 		if (routingInfo?.content) {
 			authState.creds.routingInfo = Buffer.from(routingInfo?.content as Uint8Array);
