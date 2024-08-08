@@ -253,17 +253,24 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 		const result = await query(iq);
 
 		for (const node of result.content as BinaryNode[]) {
+			if (!Array.isArray(node.content)) continue;
+
 			for (const list of node.content as BinaryNode[]) {
 				if (list.tag !== 'list') continue;
+				if (!Array.isArray(list.content)) continue;
 
 				for (const item of list.content as BinaryNode[]) {
+					if (!Array.isArray(item.content)) continue;
+
 					const jid = item.attrs.jid; // jid with s.whatsapp.net
 					const user = jid.split('@')[0];
 
 					for (const deviceNode of item.content as BinaryNode[]) {
+						if (!Array.isArray(deviceNode.content)) continue;
 						if (deviceNode.tag !== 'devices') continue;
 
 						for (const deviceListNode of deviceNode.content as BinaryNode[]) {
+							if (!Array.isArray(deviceListNode.content)) continue;
 							if (deviceListNode.tag !== 'device-list') continue;
 
 							const devices: string[] = [];
