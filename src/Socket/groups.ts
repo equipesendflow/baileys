@@ -301,11 +301,7 @@ export const extractResultGroupMetadata = (result: BinaryNode) => {
 };
 
 export const extractGroupMetadata = (group: BinaryNode) => {
-	if (!Array.isArray(group?.content)) {
-		console.log('AAAAA', JSON.stringify(group, null, 2));
-
-		throw new Error('group node is not an array');
-	}
+	if (!Array.isArray(group?.content)) throw new Error('group node is not an array');
 
 	const metadata = {
 		id: group.attrs.id.includes('@') ? group.attrs.id : jidEncode(group.attrs.id, 'g.us'),
